@@ -9,10 +9,11 @@ import java.util.stream.Collectors;
 
 public class InviteStorage {
 
+    // Represents a single invite
     public static class InviteEntry {
-        public final UUID inviterUUID;
+        public final UUID inviterUUID;       // Can be null for web-generated
         public final String inviterName;
-        public final String targetName; // will be null until used
+        public final String targetName;      // null until claimed
         public final long createdAt;
 
         public InviteEntry(UUID inviterUUID, String inviterName, String targetName) {
@@ -26,18 +27,19 @@ public class InviteStorage {
     // token -> InviteEntry
     private static final Map<String, InviteEntry> invites = new ConcurrentHashMap<>();
 
-    public static String generateToken(CommandSource inviter) {
+    // Called from /invite
+    public static String generateToken(CommandSource source) {
         UUID inviterUUID = null;
         String inviterName = "[console]";
 
-        if (inviter instanceof com.velocitypowered.api.proxy.Player) {
-            com.velocitypowered.api.proxy.Player player = (com.velocitypowered.api.proxy.Player) inviter;
+        if (source instanceof Player) {
+            Player player = (Player) source;
             inviterUUID = player.getUniqueId();
             inviterName = player.getUsername();
         }
 
         String token = UUID.randomUUID().toString();
-        invites.put(token, new InviteEntry(inviterUUID, inviterName, null)); // null targetName
+        invites.put(token, new InviteEntry(inviterUUID, inviterName, null));
         return token;
     }
 
@@ -45,8 +47,16 @@ public class InviteStorage {
         return invites.containsKey(token);
     }
 
-    public static InviteEntry useToken(String token) {
-        return invites.remove(token); // Removes the token once it's used
+    // Called when user submits the form
+    public static InviteEntry useToken(String token, String username) {
+        InviteEntry original = invites.remove(token);
+        if (original == null) return null;
+
+        return new InviteEntry(
+                original.inviterUUID,
+                original.inviterName,
+                username // now we record who claimed it
+        );
     }
 
     public static List<Map.Entry<String, InviteEntry>> getInvitesBy(UUID inviterUUID) {
@@ -55,6 +65,7 @@ public class InviteStorage {
                 .collect(Collectors.toList());
     }
 
+    // Used by admin panel (without a Minecraft UUID)
     public static void inviteFromWeb(String token, String inviterName, String targetName) {
         invites.put(token, new InviteEntry(null, inviterName, targetName));
     }

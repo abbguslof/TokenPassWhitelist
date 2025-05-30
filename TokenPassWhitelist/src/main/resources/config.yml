@@ -1,6 +1,15 @@
-ip: "0.0.0.0"
+# HTTP server bind address
+ip: 0.0.0.0
 port: 5000
+
+# Secret token for API requests (set securely)
 api_secret: "REPLACE_ME"
-website_domain: "example.com"
-whitelist_command: "whitelist"
-admin_password: "your_super_secret_password"
+
+# Domain used in invite links
+website_domain: "invite.example.com"
+
+# Console command used to whitelist a player
+whitelist_command: "whitelist add "
+
+# Password required to generate invites via admin panel
+admin_password: "change_me_now"

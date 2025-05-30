@@ -22,56 +22,34 @@ public class InternalHttpServer {
         plugin = pluginInstance;
         config = loadedConfig;
 
-        plugin.getLogger().info("[TokenPassWhitelist] Attempting to start internal HTTP server...");
+        plugin.getLogger().info("[TokenPassWhitelist] Starting internal HTTP server...");
 
         try {
             server = HttpServer.create(new InetSocketAddress(config.ip, config.port), 0);
-
-            plugin.getLogger().info("[TokenPassWhitelist] Binding to " + config.ip + ":" + config.port);
-
             server.createContext("/api/whitelist", new WhitelistHandler());
-            server.createContext("/api/admin-invite", new AdminInviteHandler());
+            server.createContext("/api/invite-admin", new AdminInviteHandler());
             server.createContext("/ping", new PingHandler());
+            server.setExecutor(null); // default executor
 
-            plugin.getLogger().info("[TokenPassWhitelist] Contexts registered. Starting server...");
-
-            server.setExecutor(null); // Use default executor
             server.start();
-
-            plugin.getLogger().info("[TokenPassWhitelist] Internal HTTP server started successfully.");
-        } catch (Exception e) {
+            plugin.getLogger().info("[TokenPassWhitelist] HTTP server started on " + config.ip + ":" + config.port);
+        } catch (IOException e) {
             plugin.getLogger().severe("[TokenPassWhitelist] Failed to start HTTP server: " + e.getMessage());
             e.printStackTrace();
         }
     }
 
-    static class PingHandler implements HttpHandler {
-        @Override
-        public void handle(HttpExchange exchange) throws IOException {
-            String response = "server is responding to ping request.";
-            exchange.sendResponseHeaders(200, response.length());
-            try (OutputStream os = exchange.getResponseBody()) {
-                os.write(response.getBytes(StandardCharsets.UTF_8));
-            }
-        }
-    }
-
+    // WhitelistHandler (whitelisted from website using token)
     static class WhitelistHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
-            plugin.getLogger().info("[TokenPassWhitelist] Received request: " + exchange.getRequestMethod());
-
             if (!exchange.getRequestMethod().equalsIgnoreCase("POST")) {
-                plugin.getLogger().info("[TokenPassWhitelist] Rejected: Not a POST");
                 exchange.sendResponseHeaders(405, -1);
                 return;
             }
 
             String authHeader = exchange.getRequestHeaders().getFirst("X-Auth-Token");
-            plugin.getLogger().info("[TokenPassWhitelist] Auth header: " + authHeader);
-
             if (authHeader == null || !authHeader.equals(config.apiSecret)) {
-                plugin.getLogger().info("[TokenPassWhitelist] Rejected: Invalid or missing auth token");
                 exchange.sendResponseHeaders(401, -1);
                 return;
             }
@@ -84,40 +62,26 @@ public class InternalHttpServer {
             String token = body.get("token").getAsString();
             String username = body.get("username").getAsString();
 
-            plugin.getLogger().info("[TokenPassWhitelist] Request to whitelist " + username + " using token " + token);
-
             if (!InviteStorage.isValidToken(token)) {
                 sendJson(exchange, 400, "Invalid or expired token.");
                 return;
             }
 
-            InviteStorage.InviteEntry entry = InviteStorage.useToken(token);
-            if (entry == null) {
-                sendJson(exchange, 400, "Token already used.");
+            InviteStorage.InviteEntry used = InviteStorage.useToken(token, username);
+            if (used == null) {
+                sendJson(exchange, 400, "Token already used or invalid.");
                 return;
             }
 
-            // Run the whitelist add command
             String command = config.whitelistCommand + username;
-            plugin.getLogger().info("[TokenPassWhitelist] Running command: " + command);
             plugin.getServer().getCommandManager().executeAsync(plugin.getServer().getConsoleCommandSource(), command);
-            plugin.getLogger().info("[TokenPassWhitelist] " + username + " whitelisted (invited by " + entry.inviterName + ")");
 
+            plugin.getLogger().info("[TokenPassWhitelist] " + username + " whitelisted (invited by " + used.inviterName + ")");
             sendJson(exchange, 200, "Player " + username + " has been whitelisted.");
-        }
-
-        private void sendJson(HttpExchange exchange, int code, String message) throws IOException {
-            JsonObject response = new JsonObject();
-            response.addProperty("message", message);
-            byte[] bytes = response.toString().getBytes(StandardCharsets.UTF_8);
-            exchange.getResponseHeaders().set("Content-Type", "application/json");
-            exchange.sendResponseHeaders(code, bytes.length);
-            try (OutputStream os = exchange.getResponseBody()) {
-                os.write(bytes);
-            }
         }
     }
 
+    // AdminInviteHandler (admin panel creates invite)
     static class AdminInviteHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
@@ -145,14 +109,38 @@ public class InternalHttpServer {
 
             String link = "https://" + config.websiteDomain + "/invite/" + token;
             JsonObject response = new JsonObject();
-            response.addProperty("message", "Invite created: " + link);
+            response.addProperty("message", "Invite created.");
+            response.addProperty("token", token);
+            response.addProperty("link", link);
 
-            byte[] bytes = response.toString().getBytes(StandardCharsets.UTF_8);
-            exchange.getResponseHeaders().set("Content-Type", "application/json");
-            exchange.sendResponseHeaders(200, bytes.length);
+            sendJson(exchange, 200, response);
+        }
+    }
+
+    // PingHandler and sendJson
+    static class PingHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            String response = "pong";
+            exchange.sendResponseHeaders(200, response.length());
             try (OutputStream os = exchange.getResponseBody()) {
-                os.write(bytes);
+                os.write(response.getBytes(StandardCharsets.UTF_8));
             }
+        }
+    }
+
+    private static void sendJson(HttpExchange exchange, int code, String message) throws IOException {
+        JsonObject obj = new JsonObject();
+        obj.addProperty("message", message);
+        sendJson(exchange, code, obj);
+    }
+
+    private static void sendJson(HttpExchange exchange, int code, JsonObject json) throws IOException {
+        byte[] bytes = json.toString().getBytes(StandardCharsets.UTF_8);
+        exchange.getResponseHeaders().set("Content-Type", "application/json");
+        exchange.sendResponseHeaders(code, bytes.length);
+        try (OutputStream os = exchange.getResponseBody()) {
+            os.write(bytes);
         }
     }
 }

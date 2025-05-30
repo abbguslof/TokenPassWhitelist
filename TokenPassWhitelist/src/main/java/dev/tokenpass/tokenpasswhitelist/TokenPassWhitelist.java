@@ -18,10 +18,11 @@ import java.util.logging.Logger;
 )
 public class TokenPassWhitelist {
 
-    private ConfigFile config;
     private final ProxyServer server;
     private final Logger logger;
     private final Path dataDirectory;
+
+    private ConfigFile config;
 
     @Inject
     public TokenPassWhitelist(ProxyServer server, Logger logger, @DataDirectory Path dataDirectory) {
@@ -32,19 +33,22 @@ public class TokenPassWhitelist {
 
     @Subscribe
     public void onProxyInitialization(ProxyInitializeEvent event) {
-        logger.info("[TokenPassWhitelist] Loading configuration...");
-        this.config = ConfigFile.load(dataDirectory.resolve("config.yml"));
-        logger.info("Config loaded: IP=" + config.ip + ", Port=" + config.port);
+        logger.info("[TokenPassWhitelist] Initializing...");
 
-        logger.info("[TokenPassWhitelist] Starting HTTP server...");
+        // Load configuration
+        this.config = ConfigFile.load(dataDirectory.resolve("config.yml"));
+        logger.info("[TokenPassWhitelist] Configuration loaded.");
+
+        // Start internal HTTP server
         InternalHttpServer.start(this, config);
 
+        // Register /invite command
         server.getCommandManager().register(
                 server.getCommandManager().metaBuilder("invite").plugin(this).build(),
                 new InviteCommand(this)
         );
 
-        logger.info("[TokenPassWhitelist] Plugin successfully initialized.");
+        logger.info("[TokenPassWhitelist] Plugin initialized successfully.");
     }
 
     public ProxyServer getServer() {

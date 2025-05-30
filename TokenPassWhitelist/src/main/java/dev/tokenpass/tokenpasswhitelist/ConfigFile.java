@@ -6,6 +6,7 @@ import org.spongepowered.configurate.loader.ConfigurationLoader;
 import org.spongepowered.configurate.yaml.YamlConfigurationLoader;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -28,9 +29,13 @@ public class ConfigFile {
 
     public static ConfigFile load(Path configPath) {
         try {
+            // If config doesn't exist, copy from plugin jar
             if (Files.notExists(configPath)) {
                 Files.createDirectories(configPath.getParent());
-                Files.copy(ConfigFile.class.getResourceAsStream("/config.yml"), configPath);
+                try (InputStream in = ConfigFile.class.getResourceAsStream("/config.yml")) {
+                    if (in == null) throw new IOException("Missing default config.yml in resources!");
+                    Files.copy(in, configPath);
+                }
             }
 
             ConfigurationLoader<CommentedConfigurationNode> loader = YamlConfigurationLoader.builder()
@@ -39,14 +44,15 @@ public class ConfigFile {
 
             CommentedConfigurationNode node = loader.load(ConfigurationOptions.defaults());
 
-            String ip = node.node("ip").getString("0.0.0.0");
-            int port = node.node("port").getInt(5000);
-            String apiSecret = node.node("api_secret").getString("REPLACE_ME");
-            String websiteDomain = node.node("website_domain").getString("example.com");
-            String whitelistCommand = node.node("whitelist_command").getString("whitelist");
-            String adminPassword = node.node("admin_password").getString("your_super_secret_password");
+            return new ConfigFile(
+                    node.node("ip").getString("0.0.0.0"),
+                    node.node("port").getInt(5000),
+                    node.node("api_secret").getString("REPLACE_ME"),
+                    node.node("website_domain").getString("example.com"),
+                    node.node("whitelist_command").getString("whitelist add "),
+                    node.node("admin_password").getString("change_me_now")
+            );
 
-            return new ConfigFile(ip, port, apiSecret, websiteDomain, whitelistCommand, adminPassword);
         } catch (IOException e) {
             throw new RuntimeException("[TokenPassWhitelist] Failed to load or create config.yml", e);
         }

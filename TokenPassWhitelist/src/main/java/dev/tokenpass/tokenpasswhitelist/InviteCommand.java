@@ -24,44 +24,53 @@ public class InviteCommand implements SimpleCommand {
         String[] args = invocation.arguments();
 
         if (!(source instanceof Player)) {
-            source.sendMessage(Component.text("[TokenPassWhitelist] Only players can use this command.", NamedTextColor.RED));
+            source.sendMessage(Component.text("Only players can use this command.", NamedTextColor.RED));
             return;
         }
 
         Player player = (Player) source;
         UUID playerUUID = player.getUniqueId();
-
         if (args.length == 1 && args[0].equalsIgnoreCase("list")) {
             List<Map.Entry<String, InviteStorage.InviteEntry>> invites = InviteStorage.getInvitesBy(playerUUID);
 
             if (invites.isEmpty()) {
-                player.sendMessage(Component.text("[TokenPassWhitelist] You haven’t generated any invites yet.", NamedTextColor.GRAY));
+                player.sendMessage(Component.text("You haven’t generated any invites yet.", NamedTextColor.GRAY));
                 return;
             }
 
-            player.sendMessage(Component.text("[TokenPassWhitelist] Your active invites:", NamedTextColor.GREEN));
+            player.sendMessage(Component.text("Your invites:", NamedTextColor.GREEN));
             for (Map.Entry<String, InviteStorage.InviteEntry> entry : invites) {
                 String token = entry.getKey();
-                String link = "https://" + plugin.getConfig().websiteDomain + "/invite/" + token;
+                InviteStorage.InviteEntry invite = entry.getValue();
 
-                player.sendMessage(
-                        Component.text("- ", NamedTextColor.YELLOW)
-                                .append(Component.text(link, NamedTextColor.AQUA))
-                );
+                if (invite.targetName != null) {
+                    // Already claimed
+                    player.sendMessage(Component.text("- Token used by: ", NamedTextColor.YELLOW)
+                            .append(Component.text(invite.targetName, NamedTextColor.AQUA)));
+                } else {
+                    // Still valid
+                    String link = "https://" + plugin.getConfig().websiteDomain + "/invite/" + token;
+                    player.sendMessage(Component.text("- Token not yet used: ", NamedTextColor.YELLOW)
+                            .append(Component.text(link, NamedTextColor.AQUA)));
+                }
             }
-
         } else if (args.length == 0) {
             String token = InviteStorage.generateToken(player);
-            String inviteLink = "https://" + plugin.getConfig().websiteDomain + "/invite/" + token;
+            String link = "https://" + plugin.getConfig().websiteDomain + "/invite/" + token;
 
-            player.sendMessage(Component.text("[TokenPassWhitelist] Invite link: ", NamedTextColor.GREEN)
-                    .append(Component.text(inviteLink, NamedTextColor.AQUA).clickEvent(
-                            net.kyori.adventure.text.event.ClickEvent.openUrl(inviteLink)
-                    ).hoverEvent(
-                            net.kyori.adventure.text.event.HoverEvent.showText(Component.text("Click to open"))
-                    )));
+            player.sendMessage(
+                    Component.text("Invite link: ", NamedTextColor.GREEN)
+                            .append(
+                                    Component.text(link, NamedTextColor.AQUA)
+                                            .clickEvent(net.kyori.adventure.text.event.ClickEvent.openUrl(link))
+                                            .hoverEvent(net.kyori.adventure.text.event.HoverEvent.showText(
+                                                    Component.text("Click to open")
+                                            ))
+                            )
+            );
+
         } else {
-            player.sendMessage(Component.text("[TokenPassWhitelist] Usage: /invite [list]", NamedTextColor.RED));
+            player.sendMessage(Component.text("Usage: /invite [list]", NamedTextColor.RED));
         }
     }
 }
