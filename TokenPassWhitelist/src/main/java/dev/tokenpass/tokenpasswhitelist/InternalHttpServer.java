@@ -28,6 +28,7 @@ public class InternalHttpServer {
             server = HttpServer.create(new InetSocketAddress(config.ip, config.port), 0);
             server.createContext("/api/whitelist", new WhitelistHandler());
             server.createContext("/api/invite-admin", new AdminInviteHandler());
+            server.createContext("/api/check-token", new CheckTokenHandler());
             server.createContext("/ping", new PingHandler());
             server.setExecutor(null); // default executor
 
@@ -43,13 +44,19 @@ public class InternalHttpServer {
     static class WhitelistHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
+            plugin.getLogger().info("[TokenPassWhitelist] Received request: " + exchange.getRequestMethod() + " " + exchange.getRequestURI());
+
             if (!exchange.getRequestMethod().equalsIgnoreCase("POST")) {
+                plugin.getLogger().warning("[TokenPassWhitelist] Rejected: Not a POST request");
                 exchange.sendResponseHeaders(405, -1);
                 return;
             }
 
             String authHeader = exchange.getRequestHeaders().getFirst("X-Auth-Token");
+            plugin.getLogger().info("[TokenPassWhitelist] Auth header: " + authHeader);
+
             if (authHeader == null || !authHeader.equals(config.apiSecret)) {
+                plugin.getLogger().warning("[TokenPassWhitelist] Rejected: Missing or incorrect auth token");
                 exchange.sendResponseHeaders(401, -1);
                 return;
             }
@@ -61,22 +68,29 @@ public class InternalHttpServer {
 
             String token = body.get("token").getAsString();
             String username = body.get("username").getAsString();
+            plugin.getLogger().info("[TokenPassWhitelist] Attempt to whitelist: username=" + username + ", token=" + token);
 
             if (!InviteStorage.isValidToken(token)) {
+                plugin.getLogger().warning("[TokenPassWhitelist] Invalid or expired token: " + token);
                 sendJson(exchange, 400, "Invalid or expired token.");
                 return;
             }
 
-            InviteStorage.InviteEntry used = InviteStorage.useToken(token, username);
-            if (used == null) {
-                sendJson(exchange, 400, "Token already used or invalid.");
+            InviteStorage.InviteEntry entry = InviteStorage.useToken(token, username);
+            if (entry == null) {
+                plugin.getLogger().warning("[TokenPassWhitelist] Token already used: " + token);
+                sendJson(exchange, 400, "Token already used.");
                 return;
             }
 
             String command = config.whitelistCommand + username;
-            plugin.getServer().getCommandManager().executeAsync(plugin.getServer().getConsoleCommandSource(), command);
+            plugin.getLogger().info("[TokenPassWhitelist] Executing command: " + command);
+            plugin.getServer().getCommandManager().executeAsync(
+                    plugin.getServer().getConsoleCommandSource(),
+                    command
+            );
 
-            plugin.getLogger().info("[TokenPassWhitelist] " + username + " whitelisted (invited by " + used.inviterName + ")");
+            plugin.getLogger().info("[TokenPassWhitelist] " + username + " whitelisted (invited by " + entry.inviterName + ")");
             sendJson(exchange, 200, "Player " + username + " has been whitelisted.");
         }
     }
@@ -114,6 +128,42 @@ public class InternalHttpServer {
             response.addProperty("link", link);
 
             sendJson(exchange, 200, response);
+        }
+    }
+
+    static class CheckTokenHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            plugin.getLogger().info("[TokenPassWhitelist] /api/check-token called");
+
+            if (!exchange.getRequestMethod().equalsIgnoreCase("POST")) {
+                plugin.getLogger().warning("[TokenPassWhitelist] Invalid method on check-token");
+                exchange.sendResponseHeaders(405, -1);
+                return;
+            }
+
+            String authHeader = exchange.getRequestHeaders().getFirst("X-Auth-Token");
+            if (authHeader == null || !authHeader.equals(config.apiSecret)) {
+                plugin.getLogger().warning("[TokenPassWhitelist] Unauthorized check-token access attempt");
+                exchange.sendResponseHeaders(401, -1);
+                return;
+            }
+
+            JsonObject body;
+            try (InputStreamReader reader = new InputStreamReader(exchange.getRequestBody(), StandardCharsets.UTF_8)) {
+                body = gson.fromJson(reader, JsonObject.class);
+            }
+
+            String token = body.get("token").getAsString();
+
+            if (!InviteStorage.isValidToken(token)) {
+                plugin.getLogger().info("[TokenPassWhitelist] Token is invalid or expired: " + token);
+                sendJson(exchange, 404, "Token not valid.");
+                return;
+            }
+
+            plugin.getLogger().info("[TokenPassWhitelist] Token is valid: " + token);
+            sendJson(exchange, 200, "Token is valid.");
         }
     }
 

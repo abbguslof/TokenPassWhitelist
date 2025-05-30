@@ -1,10 +1,24 @@
 <script lang="ts">
+    import type { PageLoad } from './$types';
     import { page } from '$app/stores';
     import { get } from 'svelte/store';
 
     let username = '';
     let message = '';
     let loading = false;
+
+    export const load: PageLoad = async ({ params, fetch }) => {
+        const res = await fetch(`/api/check-token/${params.token}`);
+
+        if (!res.ok) {
+            return {
+            status: 404,
+            error: new Error('Invalid or expired invite link.')
+            };
+        }
+
+        return { token: params.token };
+    };
 
     const submit = async () => {
         loading = true;
