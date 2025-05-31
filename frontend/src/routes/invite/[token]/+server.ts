@@ -52,6 +52,11 @@ export const GET: RequestHandler = async ({ params }) => {
 	const API_URL = process.env.VITE_API_URL;
 	const AUTH_TOKEN = process.env.AUTH_TOKEN;
 
+	console.log('=== Token Validation Debug ===');
+	console.log('Token to validate:', token);
+	console.log('API_URL:', API_URL);
+	console.log('AUTH_TOKEN:', AUTH_TOKEN ? 'SET' : 'MISSING');
+
 	// Check if environment variables are properly set
 	if (!API_URL || !AUTH_TOKEN) {
 		console.error('Missing environment variables for token check:', { API_URL, AUTH_TOKEN: !!AUTH_TOKEN });
@@ -59,6 +64,13 @@ export const GET: RequestHandler = async ({ params }) => {
 	}
 
 	try {
+		console.log('Making request to:', `${API_URL}/api/check-token`);
+		console.log('With headers:', {
+			'Content-Type': 'application/json',
+			'X-Auth-Token': AUTH_TOKEN
+		});
+		console.log('With body:', JSON.stringify({ token }));
+
 		const res = await fetch(`${API_URL}/api/check-token`, {
 			method: 'POST',
 			headers: {
@@ -68,8 +80,15 @@ export const GET: RequestHandler = async ({ params }) => {
 			body: JSON.stringify({ token })
 		});
 
-		if (res.ok) return json({ valid: true });
-		else return json({ message: 'Invalid or expired token.' }, { status: 400 });
+		console.log('Response status:', res.status);
+		const responseText = await res.text();
+		console.log('Response body:', responseText);
+
+		if (res.ok) {
+			return json({ valid: true });
+		} else {
+			return json({ message: 'Invalid or expired token.' }, { status: 400 });
+		}
 	} catch (error) {
 		console.error('Error checking token:', error);
 		return json({ message: 'Failed to validate token' }, { status: 500 });
