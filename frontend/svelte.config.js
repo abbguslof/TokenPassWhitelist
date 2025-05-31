@@ -7,8 +7,6 @@ const config = {
     kit: {
         adapter: adapter()
     }
-};	kit: {
-o only supports some environments, see https://svelte.dev/docs/kit/adapter-auto for a list.
-export default config;};
+};
 
 export default config;
