@@ -47,51 +47,39 @@ public class InternalHttpServer {
             plugin.getLogger().info("[TokenPassWhitelist] Received request: " + exchange.getRequestMethod() + " " + exchange.getRequestURI());
 
             if (!exchange.getRequestMethod().equalsIgnoreCase("POST")) {
-                plugin.getLogger().warning("[TokenPassWhitelist] Rejected: Not a POST request");
-                exchange.sendResponseHeaders(405, -1);
+                sendJson(exchange, 405, "Method not allowed");
                 return;
             }
 
             String authHeader = exchange.getRequestHeaders().getFirst("X-Auth-Token");
             plugin.getLogger().info("[TokenPassWhitelist] Auth header: " + authHeader);
 
-            if (authHeader == null || !authHeader.equals(config.apiSecret)) {
-                plugin.getLogger().warning("[TokenPassWhitelist] Rejected: Missing or incorrect auth token");
-                exchange.sendResponseHeaders(401, -1);
+            if (!config.apiSecret.equals(authHeader)) {
+                sendJson(exchange, 401, "Unauthorized");
                 return;
             }
 
-            JsonObject body;
-            try (InputStreamReader reader = new InputStreamReader(exchange.getRequestBody(), StandardCharsets.UTF_8)) {
-                body = gson.fromJson(reader, JsonObject.class);
-            }
+            // Read request body
+            String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            JsonObject json = gson.fromJson(body, JsonObject.class);
 
-            String token = body.get("token").getAsString();
-            String username = body.get("username").getAsString();
-            plugin.getLogger().info("[TokenPassWhitelist] Attempt to whitelist: username=" + username + ", token=" + token);
+            String token = json.get("token").getAsString();
+            String username = json.get("username").getAsString();
 
-            if (!InviteStorage.isValidToken(token)) {
-                plugin.getLogger().warning("[TokenPassWhitelist] Invalid or expired token: " + token);
-                sendJson(exchange, 400, "Invalid or expired token.");
-                return;
-            }
-
+            // Use the token and whitelist the user
             InviteStorage.InviteEntry entry = InviteStorage.useToken(token, username);
             if (entry == null) {
-                plugin.getLogger().warning("[TokenPassWhitelist] Token already used: " + token);
-                sendJson(exchange, 400, "Token already used.");
+                sendJson(exchange, 400, "Invalid or expired token");
                 return;
             }
 
-            String command = config.whitelistCommand + username;
-            plugin.getLogger().info("[TokenPassWhitelist] Executing command: " + command);
+            // Execute whitelist command
             plugin.getServer().getCommandManager().executeAsync(
                     plugin.getServer().getConsoleCommandSource(),
-                    command
+                    config.whitelistCommand + username
             );
 
-            plugin.getLogger().info("[TokenPassWhitelist] " + username + " whitelisted (invited by " + entry.inviterName + ")");
-            sendJson(exchange, 200, "Player " + username + " has been whitelisted.");
+            sendJson(exchange, 200, "User whitelisted successfully");
         }
     }
 
@@ -100,32 +88,28 @@ public class InternalHttpServer {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
             if (!exchange.getRequestMethod().equalsIgnoreCase("POST")) {
-                exchange.sendResponseHeaders(405, -1);
+                sendJson(exchange, 405, "Method not allowed");
                 return;
             }
 
-            String adminPassword = exchange.getRequestHeaders().getFirst("X-Admin-Password");
-            if (adminPassword == null || !adminPassword.equals(config.adminPassword)) {
-                exchange.sendResponseHeaders(401, -1);
+            String authHeader = exchange.getRequestHeaders().getFirst("X-Admin-Password");
+            if (!config.adminPassword.equals(authHeader)) {
+                sendJson(exchange, 401, "Unauthorized");
                 return;
             }
 
-            JsonObject body;
-            try (InputStreamReader reader = new InputStreamReader(exchange.getRequestBody(), StandardCharsets.UTF_8)) {
-                body = gson.fromJson(reader, JsonObject.class);
-            }
+            String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            JsonObject json = gson.fromJson(body, JsonObject.class);
 
-            String username = body.get("username").getAsString();
-            String inviterName = body.has("inviterName") ? body.get("inviterName").getAsString() : "WebAdmin";
+            String username = json.get("username").getAsString();
+            String inviterName = json.get("inviterName").getAsString();
 
             String token = UUID.randomUUID().toString();
             InviteStorage.inviteFromWeb(token, inviterName, username);
 
-            String link = "https://" + config.websiteDomain + "/invite/" + token;
             JsonObject response = new JsonObject();
-            response.addProperty("message", "Invite created.");
             response.addProperty("token", token);
-            response.addProperty("link", link);
+            response.addProperty("link", "https://" + config.websiteDomain + "/invite/" + token);
 
             sendJson(exchange, 200, response);
         }
@@ -134,60 +118,43 @@ public class InternalHttpServer {
     static class CheckTokenHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
-            plugin.getLogger().info("[TokenPassWhitelist] /api/check-token called");
-
             if (!exchange.getRequestMethod().equalsIgnoreCase("POST")) {
-                plugin.getLogger().warning("[TokenPassWhitelist] Invalid method on check-token");
-                exchange.sendResponseHeaders(405, -1);
+                sendJson(exchange, 405, "Method not allowed");
                 return;
             }
 
             String authHeader = exchange.getRequestHeaders().getFirst("X-Auth-Token");
-            if (authHeader == null || !authHeader.equals(config.apiSecret)) {
-                plugin.getLogger().warning("[TokenPassWhitelist] Unauthorized check-token access attempt");
-                exchange.sendResponseHeaders(401, -1);
+            if (!config.apiSecret.equals(authHeader)) {
+                sendJson(exchange, 401, "Unauthorized");
                 return;
             }
 
-            JsonObject body;
-            try (InputStreamReader reader = new InputStreamReader(exchange.getRequestBody(), StandardCharsets.UTF_8)) {
-                body = gson.fromJson(reader, JsonObject.class);
+            String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            JsonObject json = gson.fromJson(body, JsonObject.class);
+            String token = json.get("token").getAsString();
+
+            if (InviteStorage.isValidToken(token)) {
+                sendJson(exchange, 200, "Token is valid");
+            } else {
+                sendJson(exchange, 400, "Invalid token");
             }
-
-            String token = body.get("token").getAsString();
-
-            if (!InviteStorage.isValidToken(token)) {
-                plugin.getLogger().info("[TokenPassWhitelist] Token is invalid or expired: " + token);
-                sendJson(exchange, 404, "Token not valid.");
-                return;
-            }
-
-            plugin.getLogger().info("[TokenPassWhitelist] Token is valid: " + token);
-            sendJson(exchange, 200, "Token is valid.");
         }
     }
 
-    // PingHandler and sendJson
+    // PingHandler
     static class PingHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
-            String response = "pong";
-            exchange.sendResponseHeaders(200, response.length());
-            try (OutputStream os = exchange.getResponseBody()) {
-                os.write(response.getBytes(StandardCharsets.UTF_8));
-            }
+            sendJson(exchange, 200, "pong");
         }
-    }
-
-    private static void sendJson(HttpExchange exchange, int code, String message) throws IOException {
-        JsonObject obj = new JsonObject();
-        obj.addProperty("message", message);
-        sendJson(exchange, code, obj);
     }
 
     private static void sendJson(HttpExchange exchange, int code, JsonObject json) throws IOException {
         byte[] bytes = json.toString().getBytes(StandardCharsets.UTF_8);
         exchange.getResponseHeaders().set("Content-Type", "application/json");
+        exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
+        exchange.getResponseHeaders().set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+        exchange.getResponseHeaders().set("Access-Control-Allow-Headers", "Content-Type, X-Auth-Token, X-Admin-Password");
         exchange.sendResponseHeaders(code, bytes.length);
         try (OutputStream os = exchange.getResponseBody()) {
             os.write(bytes);
