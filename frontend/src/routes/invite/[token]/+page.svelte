@@ -10,6 +10,13 @@
 	let token = $page.params.token;
 	let captchaToken = '';
 
+	// Global callback for hCaptcha
+	if (typeof window !== 'undefined') {
+		(window as any).onCaptchaComplete = (token: string) => {
+			captchaToken = token;
+		};
+	}
+
 	onMount(async () => {
 		try {
 			const res = await fetch(`/invite/${token}`);
@@ -24,6 +31,11 @@
 	});
 
 	async function submit() {
+		if (!captchaToken) {
+			error = "Please complete the CAPTCHA";
+			return;
+		}
+
 		submitting = true;
 		error = null;
 
@@ -66,14 +78,13 @@
                 disabled={submitting}
             />
             <div class="captcha">
-                <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
                 <div
                     class="h-captcha"
                     data-sitekey={import.meta.env.VITE_HCAPTCHA_SITE_KEY}
                     data-callback="onCaptchaComplete"
                 ></div>
             </div>
-            <button type="submit" disabled={submitting || !username}>
+            <button type="submit" disabled={submitting || !username || !captchaToken}>
                 {submitting ? 'Processing...' : 'Join Server'}
             </button>
         </form>
@@ -83,6 +94,10 @@
         <p>Validating invite...</p>
     </div>
 {/if}
+
+<svelte:head>
+    <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
+</svelte:head>
 
 <style>
     .container {
