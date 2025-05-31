@@ -5,6 +5,8 @@ import com.google.gson.JsonObject;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 
 import java.io.*;
 import java.net.InetSocketAddress;
@@ -84,10 +86,21 @@ public class InternalHttpServer {
                 return;
             }
 
+            // Whitelist command
             plugin.getServer().getCommandManager().executeAsync(
                     plugin.getServer().getConsoleCommandSource(),
                     config.whitelistCommand + username
             );
+
+            // Notify inviter if online
+            if (entry.inviterUUID != null) {
+                plugin.getServer().getPlayer(entry.inviterUUID).ifPresent(inviter -> {
+                    inviter.sendMessage(Component.text(
+                            "Your invite was used to whitelist " + username + "!",
+                            NamedTextColor.GREEN
+                    ));
+                });
+            }
 
             sendJson(exchange, 200, "User whitelisted successfully");
         }

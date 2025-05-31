@@ -48,6 +48,9 @@ public class TokenPassWhitelist {
                 new InviteCommand(this)
         );
 
+        // Save invites to yml file
+        InviteStorage.loadFromDisk(getInvitesFile());
+
         logger.info("[TokenPassWhitelist] Plugin initialized successfully.");
     }
 
