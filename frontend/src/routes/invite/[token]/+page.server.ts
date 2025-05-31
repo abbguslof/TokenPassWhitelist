@@ -1,7 +1,6 @@
-const API_URL = process.env.API_URL;
-if (!API_URL) throw new Error("Missing VITE_API_URL in environment (DOTENV FILE)");
+if (!process.env.VITE_API_URL) throw new Error("Missing VITE_API_URL in environment (DOTENV FILE)");
 
-const res = await fetch(`${API_URL}/api/check-token`, {
+const res = await fetch(`${process.env.VITE_API_URL}/api/check-token`, {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
