@@ -149,6 +149,14 @@ public class InternalHttpServer {
         }
     }
 
+    // New helper method to wrap string messages into a JsonObject
+    private static void sendJson(HttpExchange exchange, int code, String message) throws IOException {
+        JsonObject json = new JsonObject();
+        json.addProperty("message", message);
+        sendJson(exchange, code, json);
+    }
+
+    // Sends actual JSON object
     private static void sendJson(HttpExchange exchange, int code, JsonObject json) throws IOException {
         byte[] bytes = json.toString().getBytes(StandardCharsets.UTF_8);
         exchange.getResponseHeaders().set("Content-Type", "application/json");
