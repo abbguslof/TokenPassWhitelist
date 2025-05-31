@@ -1,91 +1,57 @@
 <script lang="ts">
-    import { page } from '$app/stores';
-    import { get } from 'svelte/store';
-  
-    let username = '';
-    let message = '';
-    let success = false;
-    let loading = false;
-    const token = get(page).params.token;
-  
-    async function submit() {
-      loading = true;
-      message = '';
-  
-      const res = await fetch('/api/whitelist', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, username })
-      });
-  
-      const data = await res.json();
-      loading = false;
-  
-      if (!res.ok) {
-        message = data.message || 'Something went wrong.';
-      } else {
-        success = true;
-        message = data.message;
-      }
-    }
-  </script>
-  
-  <svelte:head>
-    <title>{import.meta.env.VITE_BRAND_NAME} - Invite</title>
-  </svelte:head>
-  
-  <style>
-    .container {
-      max-width: 400px;
-      margin: 5rem auto;
-      padding: 2rem;
-      border-radius: 8px;
-      background: white;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-      font-family: sans-serif;
-      text-align: center;
-    }
-    input, button {
-      padding: 0.6rem;
-      font-size: 1rem;
-      margin-top: 1rem;
-      width: 100%;
-      box-sizing: border-box;
-    }
-    button {
-      background-color: var(--primary);
-      color: white;
-      border: none;
-      cursor: pointer;
-    }
-    .success {
-      color: green;
-      font-weight: bold;
-    }
-    .error {
-      color: red;
-      margin-top: 1rem;
-    }
-  </style>
-  
-  <div class="container" style="--primary: {import.meta.env.VITE_PRIMARY_COLOR}">
-    {#if success}
-      <h2>✅ Success!</h2>
-      <p>You’ve been whitelisted.</p>
-      <p style="margin-top: 1rem;">Server IP:</p>
-      <code>{import.meta.env.VITE_SERVER_IP}</code>
-    {:else}
-      <h1>{import.meta.env.VITE_BRAND_NAME}</h1>
-      <p>Enter your Minecraft username to accept your invite:</p>
-  
-      <input bind:value={username} placeholder="Minecraft Username" />
-      <button on:click={submit} disabled={loading}>
-        {loading ? 'Submitting...' : 'Submit'}
-      </button>
-  
-      {#if message}
-        <p class="error">{message}</p>
-      {/if}
-    {/if}
-  </div>
-  
+	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
+	import { onMount } from 'svelte';
+	let username = '';
+	let error: string | null = null;
+	let submitting = false;
+	let valid = false;
+	let token = $page.params.token;
+	let captchaToken = '';
+
+	onMount(async () => {
+		const res = await fetch(`/invite/${token}/check`);
+		if (res.ok) valid = true;
+		else error = "This invite link is invalid or expired.";
+	});
+
+	async function submit() {
+		submitting = true;
+		error = null;
+
+		const res = await fetch(`/invite/${token}/whitelist`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ username, captchaToken })
+		});
+
+		const data = await res.json();
+		if (res.ok) goto('/success');
+		else error = data.message || "Error";
+		submitting = false;
+	}
+</script>
+
+{#if error}
+	<p class="error">{error}</p>
+{:else if valid}
+	<h1>You're invited to {import.meta.env.VITE_BRAND_NAME}</h1>
+	<form on:submit|preventDefault={submit}>
+		<input type="text" placeholder="Minecraft username" bind:value={username} required />
+		<div class="captcha">
+			<script src="https://js.hcaptcha.com/1/api.js" async defer></script>
+			<div
+				class="h-captcha"
+				data-sitekey={import.meta.env.VITE_HCAPTCHA_SITE_KEY}
+				data-callback={(token) => (captchaToken = token)}
+			/>
+		</div>
+		<button disabled={submitting}>Join</button>
+	</form>
+{/if}
+
+<style>
+	form { display: flex; flex-direction: column; gap: 1rem; max-width: 400px; margin: auto; }
+	input, button { padding: 0.75rem; font-size: 1rem; }
+	.error { color: red; text-align: center; margin-top: 2rem; }
+</style>

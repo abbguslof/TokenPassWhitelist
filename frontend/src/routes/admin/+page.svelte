@@ -1,91 +1,74 @@
 <script lang="ts">
-    let username = '';
-    let password = '';
-    let message = '';
-    let link = '';
-    let loading = false;
-  
-    async function submit() {
-      loading = true;
-      message = '';
-      link = '';
-  
-      const res = await fetch('/api/invite-admin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
-      });
-  
-      const data = await res.json();
-      loading = false;
-  
-      if (!res.ok) {
-        message = data.message || 'Something went wrong.';
-      } else {
-        message = 'Invite created!';
-        link = data.link;
-      }
-    }
-  </script>
-  
-  <svelte:head>
-    <title>Admin – {import.meta.env.VITE_BRAND_NAME}</title>
-  </svelte:head>
-  
-  <style>
-    .container {
-      max-width: 400px;
-      margin: 5rem auto;
-      padding: 2rem;
-      border-radius: 8px;
-      background: white;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-      text-align: center;
-      font-family: sans-serif;
-    }
-    input, button {
-      width: 100%;
-      padding: 0.6rem;
-      margin-top: 1rem;
-      font-size: 1rem;
-      box-sizing: border-box;
-    }
-    button {
-      background-color: var(--primary);
-      color: white;
-      border: none;
-      cursor: pointer;
-    }
-    .success {
-      color: green;
-      font-weight: bold;
-    }
-    .error {
-      color: red;
-      margin-top: 1rem;
-    }
-    a {
-      word-break: break-all;
-      font-size: 0.9rem;
-    }
-  </style>
-  
-  <div class="container" style="--primary: {import.meta.env.VITE_PRIMARY_COLOR}">
-    <h2>Admin Invite Generator</h2>
-  
-    <input bind:value={username} placeholder="Username to invite" />
-    <input bind:value={password} type="password" placeholder="Admin Password" />
-  
-    <button on:click={submit} disabled={loading}>
-      {loading ? 'Submitting...' : 'Generate Invite'}
-    </button>
-  
-    {#if message}
-      <p class={link ? 'success' : 'error'}>{message}</p>
-    {/if}
-  
-    {#if link}
-      <a href={link} target="_blank">{link}</a>
-    {/if}
-  </div>
-  
+	import { onMount } from 'svelte';
+	let password = '';
+	let username = '';
+	let inviter = '';
+	let result: string | null = null;
+	let error: string | null = null;
+	let submitting = false;
+</script>
+
+<main>
+	<h1>🛡️ Admin Invite Panel</h1>
+
+	<form on:submit|preventDefault={async () => {
+		result = error = null;
+		submitting = true;
+
+		const res = await fetch('/admin/create', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ password, username, inviter })
+		});
+
+		const data = await res.json();
+		if (res.ok) {
+			result = data.link;
+		} else {
+			error = data.message || 'Error creating invite.';
+		}
+		submitting = false;
+	}}>
+		<input type="password" placeholder="Admin Password" bind:value={password} required />
+		<input type="text" placeholder="Target Minecraft Username" bind:value={username} required />
+		<input type="text" placeholder="Inviter Name (optional)" bind:value={inviter} />
+		<button disabled={submitting}>Generate Invite</button>
+	</form>
+
+	{#if result}
+		<p class="result">✅ Invite Created: <a href={result} target="_blank">{result}</a></p>
+	{:else if error}
+		<p class="error">❌ {error}</p>
+	{/if}
+</main>
+
+<style>
+	main {
+		max-width: 500px;
+		margin: 4rem auto;
+		padding: 2rem;
+		background: white;
+		border-radius: 10px;
+		box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+	}
+
+	form {
+		display: flex;
+		flex-direction: column;
+		gap: 1rem;
+		margin-top: 2rem;
+	}
+
+	input, button {
+		padding: 0.75rem;
+		font-size: 1rem;
+	}
+
+	.result, .error {
+		margin-top: 1rem;
+		text-align: center;
+	}
+	.result a {
+		word-break: break-all;
+	}
+</style>
