@@ -40,11 +40,15 @@ public class InternalHttpServer {
         }
     }
 
-    // WhitelistHandler (whitelisted from website using token)
     static class WhitelistHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
             plugin.getLogger().info("[TokenPassWhitelist] Received request: " + exchange.getRequestMethod() + " " + exchange.getRequestURI());
+
+            if (exchange.getRequestMethod().equalsIgnoreCase("OPTIONS")) {
+                handlePreflight(exchange);
+                return;
+            }
 
             if (!exchange.getRequestMethod().equalsIgnoreCase("POST")) {
                 sendJson(exchange, 405, "Method not allowed");
@@ -59,21 +63,18 @@ public class InternalHttpServer {
                 return;
             }
 
-            // Read request body
             String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
             JsonObject json = gson.fromJson(body, JsonObject.class);
 
             String token = json.get("token").getAsString();
             String username = json.get("username").getAsString();
 
-            // Use the token and whitelist the user
             InviteStorage.InviteEntry entry = InviteStorage.useToken(token, username);
             if (entry == null) {
                 sendJson(exchange, 400, "Invalid or expired token");
                 return;
             }
 
-            // Execute whitelist command
             plugin.getServer().getCommandManager().executeAsync(
                     plugin.getServer().getConsoleCommandSource(),
                     config.whitelistCommand + username
@@ -83,10 +84,14 @@ public class InternalHttpServer {
         }
     }
 
-    // AdminInviteHandler (admin panel creates invite)
     static class AdminInviteHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
+            if (exchange.getRequestMethod().equalsIgnoreCase("OPTIONS")) {
+                handlePreflight(exchange);
+                return;
+            }
+
             if (!exchange.getRequestMethod().equalsIgnoreCase("POST")) {
                 sendJson(exchange, 405, "Method not allowed");
                 return;
@@ -118,6 +123,11 @@ public class InternalHttpServer {
     static class CheckTokenHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
+            if (exchange.getRequestMethod().equalsIgnoreCase("OPTIONS")) {
+                handlePreflight(exchange);
+                return;
+            }
+
             if (!exchange.getRequestMethod().equalsIgnoreCase("POST")) {
                 sendJson(exchange, 405, "Method not allowed");
                 return;
@@ -141,22 +151,32 @@ public class InternalHttpServer {
         }
     }
 
-    // PingHandler
     static class PingHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
+            if (exchange.getRequestMethod().equalsIgnoreCase("OPTIONS")) {
+                handlePreflight(exchange);
+                return;
+            }
+
             sendJson(exchange, 200, "pong");
         }
     }
 
-    // New helper method to wrap string messages into a JsonObject
+    private static void handlePreflight(HttpExchange exchange) throws IOException {
+        exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
+        exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+        exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type, X-Auth-Token, X-Admin-Password");
+        exchange.sendResponseHeaders(204, -1); // No content
+        exchange.close();
+    }
+
     private static void sendJson(HttpExchange exchange, int code, String message) throws IOException {
         JsonObject json = new JsonObject();
         json.addProperty("message", message);
         sendJson(exchange, code, json);
     }
 
-    // Sends actual JSON object
     private static void sendJson(HttpExchange exchange, int code, JsonObject json) throws IOException {
         byte[] bytes = json.toString().getBytes(StandardCharsets.UTF_8);
         exchange.getResponseHeaders().set("Content-Type", "application/json");
