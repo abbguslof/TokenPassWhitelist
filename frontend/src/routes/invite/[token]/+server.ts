@@ -9,6 +9,12 @@ export const POST: RequestHandler = async ({ request, params }) => {
 	const AUTH_TOKEN = process.env.AUTH_TOKEN;
 	const HCAPTCHA_SECRET = process.env.HCAPTCHA_SECRET;
 
+	// Check if environment variables are properly set
+	if (!API_URL || !AUTH_TOKEN || !HCAPTCHA_SECRET) {
+		console.error('Missing environment variables:', { API_URL, AUTH_TOKEN: !!AUTH_TOKEN, HCAPTCHA_SECRET: !!HCAPTCHA_SECRET });
+		return json({ message: 'Server configuration error' }, { status: 500 });
+	}
+
 	// Verify hCaptcha
 	const verify = await fetch('https://hcaptcha.com/siteverify', {
 		method: 'POST',
@@ -46,15 +52,26 @@ export const GET: RequestHandler = async ({ params }) => {
 	const API_URL = process.env.VITE_API_URL;
 	const AUTH_TOKEN = process.env.AUTH_TOKEN;
 
-	const res = await fetch(`${API_URL}/api/check-token`, {
-		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json',
-			'X-Auth-Token': AUTH_TOKEN
-		},
-		body: JSON.stringify({ token })
-	});
+	// Check if environment variables are properly set
+	if (!API_URL || !AUTH_TOKEN) {
+		console.error('Missing environment variables for token check:', { API_URL, AUTH_TOKEN: !!AUTH_TOKEN });
+		return json({ message: 'Server configuration error' }, { status: 500 });
+	}
 
-	if (res.ok) return json({ valid: true });
-	else return json({ message: 'Invalid or expired token.' }, { status: 400 });
+	try {
+		const res = await fetch(`${API_URL}/api/check-token`, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				'X-Auth-Token': AUTH_TOKEN
+			},
+			body: JSON.stringify({ token })
+		});
+
+		if (res.ok) return json({ valid: true });
+		else return json({ message: 'Invalid or expired token.' }, { status: 400 });
+	} catch (error) {
+		console.error('Error checking token:', error);
+		return json({ message: 'Failed to validate token' }, { status: 500 });
+	}
 };
