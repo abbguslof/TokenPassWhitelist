@@ -29,7 +29,14 @@
 
 	onMount(async () => {
 		try {
-			const res = await fetch(`/invite/${token}`);
+			const res = await fetch(`${import.meta.env.VITE_API_URL}/api/check-token`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'X-Auth-Token': import.meta.env.VITE_AUTH_TOKEN
+				},
+				body: JSON.stringify({ token })
+			});
 			if (res.ok) {
 				valid = true;
 				// Initialize hCaptcha after validation succeeds and DOM is ready
