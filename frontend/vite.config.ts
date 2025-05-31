@@ -12,7 +12,11 @@ export default defineConfig(({ mode }) => {
             port: 5173
         },
         define: {
-            'process.env': env
+            // Only expose specific VITE_ prefixed variables to client
+            'import.meta.env.VITE_BRAND_NAME': JSON.stringify(env.VITE_BRAND_NAME),
+            'import.meta.env.VITE_SERVER_IP': JSON.stringify(env.VITE_SERVER_IP),
+            'import.meta.env.VITE_API_URL': JSON.stringify(env.VITE_API_URL),
+            'import.meta.env.VITE_HCAPTCHA_SITE_KEY': JSON.stringify(env.VITE_HCAPTCHA_SITE_KEY)
         }
     };
 });
