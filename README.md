@@ -33,8 +33,8 @@ TokenPassWhitelist transforms the traditional Minecraft whitelist process into a
 
 ### Core Components
 
-- **[Velocity Plugin](TokenPassWhitelist/)** - Server-side Java plugin with HTTP API
-- **[Web Frontend](frontend/)** - Modern SvelteKit application for invite management
+- **[Velocity Plugin](VelocityPlugin/)** - Server-side Java plugin with HTTP API
+- **[Web Frontend](SvelteFrontend/)** - Modern SvelteKit application for invite management
 - **Security Layer** - CAPTCHA verification, rate limiting, and token validation
 
 ## ✨ Key Features
@@ -154,14 +154,14 @@ whitelist_command: whitelist add  # Server whitelist command
 ## 📁 Project Structure
 
 ```
-TokenPassWhitelistVelocityPlugin/
+VelocityPlugin/
 ├── README.md                    # This file - project overview
 ├── TokenPassWhitelist/          # Velocity plugin (Java)
 │   ├── README.md               # Plugin-specific documentation
 │   ├── src/main/java/          # Plugin source code
 │   ├── src/main/resources/     # Plugin configuration
 │   └── pom.xml                 # Maven build configuration
-└── frontend/                   # Web interface (SvelteKit)
+└── SvelteFrontend/                   # Web interface (SvelteKit)
     ├── README.md              # Frontend-specific documentation
     ├── src/                   # Frontend source code
     ├── package.json           # Node.js dependencies
@@ -179,7 +179,7 @@ The plugin exposes a RESTful HTTP API for frontend communication:
 | `/api/invite-admin` | POST | Admin create invite | Admin Password |
 | `/ping` | GET | Health check | None |
 
-**Full API documentation**: See [TokenPassWhitelist/README.md](TokenPassWhitelist/README.md#-internal-http-api)
+**Full API documentation**: See [VelocityPlugin/README.md](VelocityPlugin/README.md#-internal-http-api)
 
 ## 🛡️ Security Features
 
@@ -238,7 +238,7 @@ We welcome contributions! Here's how you can help:
 ### Development Setup
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/TokenPassWhitelistVelocityPlugin.git
+git clone https://github.com/abbguslof/TokenPassWhitelist.git
 
 # Set up the plugin
 cd TokenPassWhitelistVelocityPlugin/TokenPassWhitelist
@@ -287,10 +287,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support
 
-- **Plugin Issues**: Check [TokenPassWhitelist/README.md](TokenPassWhitelist/README.md)
-- **Frontend Issues**: Check [frontend/README.md](frontend/README.md)
+- **Plugin Issues**: Check [VelocityPlugin/README.md](VelocityPlugin/README.md)
+- **Frontend Issues**: Check [SvelteFrontend/README.md](SvelteFrontend/README.md)
 - **General Questions**: Open an issue on GitHub
-- **Security Concerns**: Email security@yourdomain.com
+- **Security Concerns**: Open an issue on GitHub
 
 ---
 

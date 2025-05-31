@@ -27,7 +27,7 @@
 This folder contains the Velocity plugin only. For the full project, see the root of this repository.
 
 ```bash
-TokenPassWhitelist/
+VelocityPlugin/
 ├── src/
 │   └── main/
 │       ├── java/dev/tokenpass/tokenpasswhitelist/
