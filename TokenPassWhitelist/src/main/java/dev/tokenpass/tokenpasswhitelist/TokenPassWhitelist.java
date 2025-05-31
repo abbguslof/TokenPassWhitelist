@@ -63,6 +63,10 @@ public class TokenPassWhitelist {
         return dataDirectory;
     }
 
+    public Path getInvitesFile() {
+        return dataDirectory.resolve("invites.yml");
+    }
+
     public ConfigFile getConfig() {
         return config;
     }

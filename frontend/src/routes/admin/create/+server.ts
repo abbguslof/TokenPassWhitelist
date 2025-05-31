@@ -1,7 +1,61 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
+// Simple in-memory rate limiting
+const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
+const RATE_LIMIT_WINDOW = 60000; // 1 minute
+const MAX_REQUESTS_PER_WINDOW = 5; // 5 admin requests per minute per IP (stricter than regular endpoints)
+
+function getRealClientIP(request: Request): string {
+	const forwarded = request.headers.get('x-forwarded-for');
+	if (forwarded) {
+		return forwarded.split(',')[0].trim();
+	}
+	
+	const realIP = request.headers.get('x-real-ip');
+	if (realIP) {
+		return realIP;
+	}
+	
+	return 'unknown';
+}
+
+function checkRateLimit(clientIP: string): boolean {
+	const now = Date.now();
+	const key = `admin-${clientIP}`;
+	
+	// Clean up expired entries periodically
+	if (Math.random() < 0.1) {
+		for (const [ip, data] of rateLimitStore.entries()) {
+			if (now > data.resetTime) {
+				rateLimitStore.delete(ip);
+			}
+		}
+	}
+	
+	const current = rateLimitStore.get(key);
+	
+	if (!current || now > current.resetTime) {
+		rateLimitStore.set(key, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
+		return true;
+	}
+	
+	if (current.count >= MAX_REQUESTS_PER_WINDOW) {
+		return false;
+	}
+	
+	current.count++;
+	return true;
+}
+
 export const POST: RequestHandler = async ({ request }) => {
+	const clientIP = getRealClientIP(request);
+	
+	// Check rate limit
+	if (!checkRateLimit(clientIP)) {
+		return json({ message: 'Too many admin requests. Please wait before trying again.' }, { status: 429 });
+	}
+
 	const { password, username, inviter } = await request.json();
 
 	const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;

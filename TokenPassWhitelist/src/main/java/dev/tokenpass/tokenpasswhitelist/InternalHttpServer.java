@@ -9,7 +9,10 @@ import com.sun.net.httpserver.HttpServer;
 import java.io.*;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class InternalHttpServer {
 
@@ -17,6 +20,10 @@ public class InternalHttpServer {
     private static TokenPassWhitelist plugin;
     private static ConfigFile config;
     private static final Gson gson = new Gson();
+
+    private static final Map<String, RequestBucket> rateLimits = new ConcurrentHashMap<>();
+    private static final int RATE_LIMIT_MAX = 5;
+    private static final int RATE_LIMIT_SECONDS = 10;
 
     public static void start(TokenPassWhitelist pluginInstance, ConfigFile loadedConfig) {
         plugin = pluginInstance;
@@ -49,6 +56,8 @@ public class InternalHttpServer {
                 handlePreflight(exchange);
                 return;
             }
+
+            if (!checkRateLimit(exchange)) return;
 
             if (!exchange.getRequestMethod().equalsIgnoreCase("POST")) {
                 sendJson(exchange, 405, "Method not allowed");
@@ -92,6 +101,8 @@ public class InternalHttpServer {
                 return;
             }
 
+            if (!checkRateLimit(exchange)) return;
+
             if (!exchange.getRequestMethod().equalsIgnoreCase("POST")) {
                 sendJson(exchange, 405, "Method not allowed");
                 return;
@@ -128,6 +139,8 @@ public class InternalHttpServer {
                 return;
             }
 
+            if (!checkRateLimit(exchange)) return;
+
             if (!exchange.getRequestMethod().equalsIgnoreCase("POST")) {
                 sendJson(exchange, 405, "Method not allowed");
                 return;
@@ -160,6 +173,43 @@ public class InternalHttpServer {
             }
 
             sendJson(exchange, 200, "pong");
+        }
+    }
+
+    // --- Rate limiting logic ---
+    private static boolean checkRateLimit(HttpExchange exchange) throws IOException {
+        String ip = exchange.getRemoteAddress().getAddress().getHostAddress();
+        RequestBucket bucket = rateLimits.computeIfAbsent(ip, k -> new RequestBucket());
+
+        if (!bucket.allow()) {
+            sendJson(exchange, 429, "Too many requests. Please wait and try again.");
+            return false;
+        }
+
+        return true;
+    }
+
+    private static class RequestBucket {
+        int count;
+        long expiresAt;
+
+        RequestBucket() {
+            this.count = 1;
+            this.expiresAt = Instant.now().getEpochSecond() + RATE_LIMIT_SECONDS;
+        }
+
+        boolean allow() {
+            long now = Instant.now().getEpochSecond();
+            if (now > expiresAt) {
+                count = 1;
+                expiresAt = now + RATE_LIMIT_SECONDS;
+                return true;
+            }
+            if (count < RATE_LIMIT_MAX) {
+                count++;
+                return true;
+            }
+            return false;
         }
     }
 

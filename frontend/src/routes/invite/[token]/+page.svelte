@@ -9,11 +9,21 @@
 	let valid = false;
 	let token = $page.params.token;
 	let captchaToken = '';
+	let captchaLoaded = false;
+	let captchaContainer: HTMLElement;
 
 	// Global callback for hCaptcha
 	if (typeof window !== 'undefined') {
 		(window as any).onCaptchaComplete = (token: string) => {
 			captchaToken = token;
+		};
+
+		(window as any).onCaptchaExpired = () => {
+			captchaToken = '';
+		};
+
+		(window as any).onCaptchaError = (error: any) => {
+			captchaToken = '';
 		};
 	}
 
@@ -22,6 +32,8 @@
 			const res = await fetch(`/invite/${token}`);
 			if (res.ok) {
 				valid = true;
+				// Initialize hCaptcha after validation succeeds and DOM is ready
+				setTimeout(initializeCaptcha, 100);
 			} else {
 				error = "This invite link is invalid or expired.";
 			}
@@ -29,6 +41,46 @@
 			error = "Failed to validate invite link.";
 		}
 	});
+
+	function initializeCaptcha() {
+		if (!captchaContainer) {
+			return;
+		}
+
+		// Wait for hCaptcha script to load
+		const checkHcaptcha = setInterval(() => {
+			if (typeof (window as any).hcaptcha !== 'undefined') {
+				clearInterval(checkHcaptcha);
+				
+				try {
+					const siteKey = import.meta.env.VITE_HCAPTCHA_SITE_KEY;
+					
+					if (siteKey && siteKey !== 'undefined' && captchaContainer) {
+						// Render the captcha using the element reference
+						(window as any).hcaptcha.render(captchaContainer, {
+							sitekey: siteKey,
+							callback: 'onCaptchaComplete',
+							'expired-callback': 'onCaptchaExpired',
+							'error-callback': 'onCaptchaError'
+						});
+						captchaLoaded = true;
+					} else {
+						error = 'Configuration error: Missing captcha site key or container';
+					}
+				} catch (e) {
+					error = 'Failed to load security verification';
+				}
+			}
+		}, 100);
+
+		// Timeout after 10 seconds
+		setTimeout(() => {
+			if (!captchaLoaded) {
+				clearInterval(checkHcaptcha);
+				error = 'Security verification failed to load. Please refresh the page.';
+			}
+		}, 10000);
+	}
 
 	async function submit() {
 		if (!captchaToken) {
@@ -78,11 +130,10 @@
                 disabled={submitting}
             />
             <div class="captcha">
-                <div
-                    class="h-captcha"
-                    data-sitekey={import.meta.env.VITE_HCAPTCHA_SITE_KEY}
-                    data-callback="onCaptchaComplete"
-                ></div>
+                <div class="h-captcha" bind:this={captchaContainer}></div>
+                {#if !captchaLoaded}
+                    <p class="loading">Loading security verification...</p>
+                {/if}
             </div>
             <button type="submit" disabled={submitting || !username || !captchaToken}>
                 {submitting ? 'Processing...' : 'Join Server'}
@@ -145,6 +196,14 @@
     
     .captcha {
         display: flex;
-        justify-content: center;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .loading {
+        color: #666;
+        font-size: 0.9rem;
+        margin: 0;
     }
 </style>
