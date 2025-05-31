@@ -10,7 +10,7 @@
 	let captchaToken = '';
 
 	onMount(async () => {
-		const res = await fetch(`/invite/${token}/check`);
+		const res = await fetch(`/invite/${token}`);
 		if (res.ok) valid = true;
 		else error = "This invite link is invalid or expired.";
 	});

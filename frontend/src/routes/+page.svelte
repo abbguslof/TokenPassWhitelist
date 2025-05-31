@@ -7,12 +7,7 @@
 	<h1>👋 Welcome to {brand}</h1>
 	<p>This server uses a secure invite-based whitelist system to ensure a trusted community.</p>
 	<p>To join, you'll need to be invited by a current player.</p>
-	<p>Already have an invite link? Use the full link (it looks like <code>{brand}/invite/&lt;token&gt;</code>)</p>
-
-	<div class="info">
-		<h2>Server IP:</h2>
-		<p><strong>{ip}</strong></p>
-	</div>
+	<p>Already have an invite link? Use the full link.</p>
 </main>
 
 <style>
