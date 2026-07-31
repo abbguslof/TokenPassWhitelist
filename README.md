@@ -77,20 +77,26 @@ TokenPassWhitelist transforms the traditional Minecraft whitelist process into a
    # Copy target/TokenPassWhitelist-*.jar to your Velocity plugins/ folder
    ```
 
-2. **Configure the Plugin**
+2. **Configure the Plugin (`config.yml`)**
+   The backend plugin does **NOT** use a `.env` file. It generates a `config.yml` in your `plugins/TokenPassWhitelist/` folder after the first run.
    ```yaml
-   # Edit config.yml after first run
+   # Edit plugins/TokenPassWhitelist/config.yml
    ip: 0.0.0.0
    port: 5000
-   api_secret: your-secure-secret
-   admin_password: your-admin-password
+   api_secret: your-secure-secret       # MUST match frontend AUTH_TOKEN
+   admin_password: your-admin-password  # MUST match frontend ADMIN_PASSWORD
    website_domain: your-domain.com
    whitelist_command: whitelist add
    ```
 
-3. **Deploy the Frontend**
+3. **Deploy the Frontend (`.env`)**
+   The frontend Node.js app **DOES** require a `.env` file in the `SvelteFrontend/` directory.
    ```bash
    cd SvelteFrontend/
+   
+   # Create a .env file (see SvelteFrontend/README.md for all variables)
+   # Ensure AUTH_TOKEN and ADMIN_PASSWORD match your plugin's config.yml exactly!
+   
    npm install
    npm run build
    # Use PM2 to run the build continuously:
@@ -132,6 +138,8 @@ This setup completely avoids CORS errors and keeps your network clean.
    - **Forward Port:** `5000` (or your configured plugin port).
 4. Save and ensure SSL is enabled.
 
+> 💡 **Tip for Single Domain Setups:** Nginx Proxy Manager only handles web traffic (ports 80/443). To make the Minecraft server work on the same domain, simply go to your router/firewall and **Port Forward 25565 directly to your Velocity proxy IP**. NPM and Velocity will live happily side-by-side using the same domain!
+
 #### Option B: Traefik (Docker Compose)
 If you run your frontend and proxy in Docker, add these labels to your frontend container:
 ```yaml
@@ -169,10 +177,19 @@ server {
 
 ### 3. Cloudflare Integration
 
-If you use Cloudflare for DNS, follow these crucial steps to ensure the application functions correctly:
-1. **Proxy Status:** You can safely set your DNS record to **Proxied (Orange Cloud)**.
-2. **SSL/TLS Mode:** Set this to **Full (Strict)**. Ensure you have a valid SSL certificate on your reverse proxy (Let's Encrypt is perfect).
-3. **Caching Rules:** The `/api/*` endpoints *must not be cached*. Go to Cloudflare Rules -> Page Rules and create a rule:
+If you use Cloudflare for DNS, you must be aware of its port limitations. **Cloudflare's free tier only proxies web traffic (ports 80/443). It will block Minecraft traffic (port 25565).**
+
+Because of this, if you want to use the **same domain** for both the website and the Minecraft server, you **cannot** use the orange cloud!
+
+**Option A: The Single Domain Method (No IP Hiding)**
+1. Set your `play.yourdomain.com` DNS record to **DNS Only (Gray Cloud)**.
+2. Players can connect via `play.yourdomain.com`, and the website will work on `https://play.yourdomain.com`.
+
+**Option B: The Subdomain Method (Hide Web IP)**
+1. Create a record for `mc.yourdomain.com` and set it to **DNS Only (Gray Cloud)**. Give this to players to join the server.
+2. Create a record for `www.yourdomain.com` (or the root domain) and set it to **Proxied (Orange Cloud)**.
+3. **SSL/TLS Mode:** Set this to **Full (Strict)**. Ensure you have a valid SSL certificate on your reverse proxy (Let's Encrypt is perfect).
+4. **Caching Rules:** The `/api/*` endpoints *must not be cached*. Go to Cloudflare Rules -> Page Rules and create a rule:
    - **URL:** `your-domain.com/api/*`
    - **Setting:** Cache Level -> Bypass
    *(Note: The Velocity API sets `Cache-Control: no-cache` by default, but this rule guarantees Cloudflare won't interfere).*
