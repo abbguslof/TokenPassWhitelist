@@ -4,7 +4,7 @@ import { env } from '$env/dynamic/private';
 
 const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
 const RATE_LIMIT_WINDOW = 60000;
-const MAX_REQUESTS_PER_WINDOW = 10;
+const MAX_REQUESTS_PER_WINDOW = 20;
 
 function getRealClientIP(request: Request): string {
 	const forwarded = request.headers.get('x-forwarded-for');

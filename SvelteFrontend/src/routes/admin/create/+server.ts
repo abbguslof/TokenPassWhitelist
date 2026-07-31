@@ -5,7 +5,7 @@ import { env } from '$env/dynamic/private';
 // Simple in-memory rate limiting
 const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
 const RATE_LIMIT_WINDOW = 60000; // 1 minute
-const MAX_REQUESTS_PER_WINDOW = 5; // 5 admin requests per minute per IP (stricter than regular endpoints)
+const MAX_REQUESTS_PER_WINDOW = 10; // 10 admin requests per minute per IP (stricter than regular endpoints)
 
 function getRealClientIP(request: Request): string {
 	const forwarded = request.headers.get('x-forwarded-for');
