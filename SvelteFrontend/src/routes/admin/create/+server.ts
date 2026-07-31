@@ -1,5 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { env } from '$env/dynamic/private';
 
 // Simple in-memory rate limiting
 const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
@@ -58,8 +59,8 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	const { password, username, inviter } = await request.json();
 
-	const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
-	const API_URL = process.env.VITE_API_URL;
+	const ADMIN_PASSWORD = env.ADMIN_PASSWORD;
+	const API_URL = env.VITE_API_URL;
 
 	// Check if environment variables are properly set
 	if (!ADMIN_PASSWORD || !API_URL) {

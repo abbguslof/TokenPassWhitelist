@@ -1,5 +1,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { env } from '$env/dynamic/private';
 
 const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
 const RATE_LIMIT_WINDOW = 60000;
@@ -41,8 +42,8 @@ export const GET: RequestHandler = async ({ params, request }) => {
 	if (!checkRateLimit(clientIP)) return json({ message: 'Too many requests' }, { status: 429 });
 
 	const token = params.token;
-	const API_URL = process.env.VITE_API_URL;
-	const AUTH_TOKEN = process.env.AUTH_TOKEN;
+	const API_URL = env.VITE_API_URL;
+	const AUTH_TOKEN = env.AUTH_TOKEN;
 
 	if (!API_URL || !AUTH_TOKEN) return json({ message: 'Server config error' }, { status: 500 });
 
@@ -74,9 +75,9 @@ export const POST: RequestHandler = async ({ request, params }) => {
 		return json({ message: 'Invalid username format' }, { status: 400 });
 	}
 
-	const API_URL = process.env.VITE_API_URL;
-	const AUTH_TOKEN = process.env.AUTH_TOKEN;
-	const HCAPTCHA_SECRET = process.env.HCAPTCHA_SECRET;
+	const API_URL = env.VITE_API_URL;
+	const AUTH_TOKEN = env.AUTH_TOKEN;
+	const HCAPTCHA_SECRET = env.HCAPTCHA_SECRET;
 
 	if (!API_URL || !AUTH_TOKEN || !HCAPTCHA_SECRET) {
 		return json({ message: 'Server config error' }, { status: 500 });

@@ -1,9 +1,11 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
-const API_URL = process.env.VITE_API_URL!;
-const AUTH_TOKEN = process.env.AUTH_TOKEN!;
-const HCAPTCHA_SECRET = process.env.HCAPTCHA_SECRET!;
+import { env } from '$env/dynamic/private';
+
+const API_URL = env.VITE_API_URL!;
+const AUTH_TOKEN = env.AUTH_TOKEN!;
+const HCAPTCHA_SECRET = env.HCAPTCHA_SECRET!;
 
 export const POST: RequestHandler = async ({ request, params }) => {
     const { username, captchaToken } = await request.json();

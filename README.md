@@ -78,9 +78,9 @@ TokenPassWhitelist transforms the traditional Minecraft whitelist process into a
    ```
 
 2. **Configure the Plugin (`config.yml`)**
-   The backend plugin does **NOT** use a `.env` file. It generates a `config.yml` in your `plugins/TokenPassWhitelist/` folder after the first run.
+   The backend plugin does **NOT** use a `.env` file. It generates a `config.yml` in your `plugins/tokenpasswhitelist/` folder after the first run.
    ```yaml
-   # Edit plugins/TokenPassWhitelist/config.yml
+   # Edit plugins/tokenpasswhitelist/config.yml
    ip: 0.0.0.0
    port: 5000
    api_secret: your-secure-secret       # MUST match frontend AUTH_TOKEN

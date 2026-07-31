@@ -43,13 +43,13 @@ public class InternalHttpServer {
             server.createContext("/api/permanent-link", new CreatePermanentLinkHandler());
             server.createContext("/api/permanent-link-info", new GetPermanentLinkInfoHandler());
             server.createContext("/api/permanent-whitelist", new WhitelistPermanentHandler());
-            server.createContext("/ping", new PingHandler());
+            server.createContext("/api/ping", new PingHandler());
             server.setExecutor(null); // default executor
 
             server.start();
             plugin.getLogger().info("[TokenPassWhitelist] HTTP server started on " + config.ip + ":" + config.port);
         } catch (IOException e) {
-            plugin.getLogger().severe("[TokenPassWhitelist] Failed to start HTTP server: " + e.getMessage());
+            plugin.getLogger().error("[TokenPassWhitelist] Failed to start HTTP server: " + e.getMessage());
             e.printStackTrace();
         }
     }

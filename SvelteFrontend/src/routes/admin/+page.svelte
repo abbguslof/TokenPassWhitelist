@@ -3,10 +3,33 @@
 	
 	const brandName = import.meta.env.VITE_BRAND_NAME;
 	let password = '';
+	let errorMsg = '';
+	let loading = false;
 
-	function login() {
-		localStorage.setItem('adminPassword', password);
-		goto('/admin/dashboard');
+	async function login() {
+		loading = true;
+		errorMsg = '';
+		try {
+			const res = await fetch('/admin/dashboard/api', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ action: 'invites', password, payload: {} })
+			});
+			
+			if (res.ok) {
+				localStorage.setItem('adminPassword', password);
+				goto('/admin/dashboard');
+			} else if (res.status === 401) {
+				errorMsg = 'Invalid admin password';
+			} else {
+				const data = await res.json().catch(() => ({}));
+				errorMsg = data.message || 'Failed to contact backend server';
+			}
+		} catch (e) {
+			errorMsg = 'Network error occurred';
+		} finally {
+			loading = false;
+		}
 	}
 </script>
 
@@ -18,6 +41,9 @@
 	</div>
 
 	<form on:submit|preventDefault={login} class="invite-form">
+		{#if errorMsg}
+			<div class="error-msg">{errorMsg}</div>
+		{/if}
 		<div class="form-group">
 			<label for="password">Admin Password</label>
 			<input 
@@ -26,16 +52,27 @@
 				placeholder="Enter admin password" 
 				bind:value={password} 
 				required 
+				disabled={loading}
 			/>
 		</div>
 
-		<button type="submit" class="submit-btn" disabled={!password}>
-			Login
+		<button type="submit" class="submit-btn" disabled={!password || loading}>
+			{loading ? 'Logging in...' : 'Login'}
 		</button>
 	</form>
 </main>
 
 <style>
+	.error-msg {
+		color: #d32f2f;
+		background: #ffebee;
+		padding: 0.75rem;
+		border-radius: 6px;
+		font-size: 0.9rem;
+		text-align: center;
+		border: 1px solid #ffcdd2;
+	}
+
 	.container {
 		max-width: 500px;
 		margin: 5rem auto;
