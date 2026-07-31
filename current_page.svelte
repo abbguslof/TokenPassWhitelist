@@ -12,8 +12,6 @@
 	let activeTab = 'tree';
 	
 	let invites: any[] = [];
-	let whitelistOutput: string[] = [];
-	let newWhitelistUser = '';
 	let players: any[] = [];
 	
 	let loading = true;
@@ -66,10 +64,8 @@
 			loading = true;
 			const invData = await apiCall('invites');
 			const plData = await apiCall('players');
-			const wlData = await apiCall('whitelist-list');
 			invites = invData.invites;
 			players = plData.players;
-			whitelistOutput = wlData.output;
 			
 			if (activeTab === 'tree') await renderTree();
 		} catch (e: any) {
@@ -121,34 +117,6 @@
 		network = new Network(networkContainer, data, options);
 	}
 
-	
-	async function deleteInvite(token: string) {
-		if (confirm('Are you sure you want to delete this invite?')) {
-			try {
-				await apiCall('delete-invite', { token });
-				await fetchData();
-			} catch (e: any) { alert(e.message); }
-		}
-	}
-
-	async function removeWhitelist(username: string) {
-		if (confirm('Are you sure you want to remove ' + username + ' from the whitelist?')) {
-			try {
-				await apiCall('remove-whitelist', { username });
-				await fetchData();
-			} catch (e: any) { alert(e.message); }
-		}
-	}
-
-	async function addWhitelist() {
-		if (!newWhitelistUser) return;
-		try {
-			await apiCall('add-whitelist', { username: newWhitelistUser });
-			newWhitelistUser = '';
-			await fetchData();
-		} catch (e: any) { alert(e.message); }
-	}
-
 	function switchTab(tab: string) {
 		activeTab = tab;
 		if (tab === 'tree') renderTree();
@@ -156,8 +124,8 @@
 
 	async function createInvite() {
 		try {
-			const data = await apiCall('invite-admin', { inviterName: newInviteCreator });
-			inviteResult = window.location.origin + '/invite/' + data.token;
+			const data = await apiCall('invite-admin', { username: newInviteUser, inviterName: newInviteCreator || 'Admin' });
+			inviteResult = data.link;
 			newInviteUser = '';
 			await fetchData();
 		} catch (e: any) {
@@ -185,7 +153,6 @@
 		<h2>Admin Panel</h2>
 		<nav>
 			<button class:active={activeTab === 'tree'} on:click={() => switchTab('tree')}>🌳 Invite Tree</button>
-			<button class:active={activeTab === 'active'} on:click={() => switchTab('active')}>🎫 Active Invites</button>
 			<button class:active={activeTab === 'whitelist'} on:click={() => switchTab('whitelist')}>📋 Players & Whitelist</button>
 			<button class:active={activeTab === 'generate'} on:click={() => switchTab('generate')}>🎟️ Generate Invite</button>
 			<button class:active={activeTab === 'permanent'} on:click={() => switchTab('permanent')}>🔗 Permanent Links</button>
@@ -206,35 +173,6 @@
 				</div>
 			{/if}
 
-			
-			{#if activeTab === 'active'}
-				<div class="card">
-					<h3>Active Invites (Unclaimed)</h3>
-					<table>
-						<thead><tr><th>Token</th><th>Inviter</th><th>Date</th><th>Action</th></tr></thead>
-						<tbody>
-							{#each invites.filter(i => !i.targetName) as i}
-								<tr>
-									<td>{i.token}</td>
-									<td>
-										{#if i.inviterName && i.inviterName.startsWith('[Admin]')}
-											<span class="admin-badge">Admin</span> {i.inviterName.replace('[Admin] ', '')}
-										{:else}
-											{i.inviterName}
-										{/if}
-									</td>
-									<td>{new Date(i.createdAt).toLocaleString()}</td>
-									<td><button class="delete-btn" on:click={() => deleteInvite(i.token)}>Delete</button></td>
-								</tr>
-							{/each}
-							{#if invites.filter(i => !i.targetName).length === 0}
-								<tr><td colspan="4">No active invites.</td></tr>
-							{/if}
-						</tbody>
-					</table>
-				</div>
-			{/if}
-
 			{#if activeTab === 'whitelist'}
 				<div class="card">
 					<h3>Currently Online Players (Proxy)</h3>
@@ -250,37 +188,31 @@
 						</tbody>
 					</table>
 				</div>
-				
 				<div class="card">
-					<h3>Server Whitelist</h3>
-					<form class="inline-form" on:submit|preventDefault={addWhitelist}>
-						<input type="text" placeholder="Add username..." bind:value={newWhitelistUser} required />
-						<button type="submit">Add to Whitelist</button>
-					</form>
-					<div class="console-output">
-						{#each whitelistOutput as line}
-							<div>{line}</div>
-						{/each}
-						{#if whitelistOutput.length === 0}
-							<div>No whitelist output received.</div>
-						{/if}
-					</div>
-					
-					<h3>Manage Existing Players</h3>
-					<p class="help-text">Type a username above to manually remove if it's not easily clickable below.</p>
-					<form class="inline-form" on:submit|preventDefault={() => removeWhitelist(newWhitelistUser)}>
-						<input type="text" placeholder="Remove username..." bind:value={newWhitelistUser} required />
-						<button type="submit" class="delete-btn">Remove Player</button>
-					</form>
+					<h3>Whitelisted via Invites</h3>
+					<table>
+						<thead><tr><th>Target Name</th><th>Invited By</th><th>Date</th></tr></thead>
+						<tbody>
+							{#each invites.filter(i => i.targetName) as i}
+								<tr>
+									<td>{i.targetName}</td>
+									<td>{i.inviterName}</td>
+									<td>{new Date(i.createdAt).toLocaleString()}</td>
+								</tr>
+							{/each}
+							{#if invites.filter(i => i.targetName).length === 0}
+								<tr><td colspan="3">No one has claimed an invite yet.</td></tr>
+							{/if}
+						</tbody>
+					</table>
 				</div>
-
 			{/if}
 
 			{#if activeTab === 'generate'}
 				<div class="card">
 					<h3>Generate Single-Use Invite</h3>
 					<form on:submit|preventDefault={createInvite}>
-						
+						<input type="text" placeholder="Target Username" bind:value={newInviteUser} required />
 						<input type="text" placeholder="Inviter Name (optional)" bind:value={newInviteCreator} />
 						<button type="submit">Generate</button>
 					</form>
@@ -412,13 +344,4 @@
 			height: 50vh;
 		}
 	}
-
-	.delete-btn { background: #d32f2f !important; }
-	.delete-btn:hover { background: #b71c1c !important; }
-	.admin-badge { background: #ff9800; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
-	.inline-form { flex-direction: row; align-items: center; margin-bottom: 1rem; max-width: none; }
-	.inline-form input { flex: 1; max-width: 300px; }
-	.console-output { background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 4px; font-family: monospace; max-height: 200px; overflow-y: auto; margin-bottom: 1.5rem; }
-	.help-text { font-size: 0.9rem; color: #666; margin-top: -0.5rem; margin-bottom: 1rem; }
-
 </style>

@@ -44,6 +44,10 @@ public class InternalHttpServer {
             server.createContext("/api/permanent-link-info", new GetPermanentLinkInfoHandler());
             server.createContext("/api/permanent-whitelist", new WhitelistPermanentHandler());
             server.createContext("/api/ping", new PingHandler());
+            server.createContext("/api/whitelist-list", new GetWhitelistHandler());
+            server.createContext("/api/add-whitelist", new AddWhitelistHandler());
+            server.createContext("/api/remove-whitelist", new RemoveWhitelistHandler());
+            server.createContext("/api/delete-invite", new DeleteInviteHandler());
             server.setExecutor(null); // default executor
 
             server.start();
@@ -150,11 +154,11 @@ public class InternalHttpServer {
             String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
             JsonObject json = gson.fromJson(body, JsonObject.class);
 
-            String username = json.get("username").getAsString();
-            String inviterName = json.get("inviterName").getAsString();
+            String baseInviter = json.has("inviterName") && !json.get("inviterName").isJsonNull() && !json.get("inviterName").getAsString().isEmpty() ? json.get("inviterName").getAsString() : "Console";
+            String inviterName = "[Admin] " + baseInviter;
 
             String token = UUID.randomUUID().toString();
-            InviteStorage.inviteFromWeb(token, inviterName, username);
+            InviteStorage.inviteFromWeb(token, inviterName, null);
 
             JsonObject response = new JsonObject();
             response.addProperty("token", token);
@@ -455,6 +459,112 @@ public class InternalHttpServer {
         exchange.sendResponseHeaders(code, bytes.length);
         try (OutputStream os = exchange.getResponseBody()) {
             os.write(bytes);
+        }
+    }
+
+    /**
+     * Handles GET /api/whitelist
+     */
+    static class GetWhitelistHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if (exchange.getRequestMethod().equalsIgnoreCase("OPTIONS")) { handlePreflight(exchange); return; }
+            if (!checkRateLimit(exchange)) return;
+            if (!exchange.getRequestMethod().equalsIgnoreCase("GET")) { sendJson(exchange, 405, "Method not allowed"); return; }
+            String authHeader = exchange.getRequestHeaders().getFirst("X-Admin-Password");
+            if (!config.adminPassword.equals(authHeader)) { sendJson(exchange, 401, "Unauthorized"); return; }
+
+            CapturingCommandSource capturer = new CapturingCommandSource(plugin.getServer().getConsoleCommandSource());
+            java.util.concurrent.CompletableFuture<Boolean> future = plugin.getServer().getCommandManager().executeAsync(
+                    capturer,
+                    config.whitelistListCommand
+            );
+            
+            try {
+                // Wait up to 2 seconds for command to execute and print output
+                future.get(2, java.util.concurrent.TimeUnit.SECONDS);
+                Thread.sleep(200); // Give it a tiny bit more time for messages to arrive
+            } catch (Exception e) {
+                // Ignore timeouts
+            }
+
+            JsonObject res = new JsonObject();
+            com.google.gson.JsonArray lines = new com.google.gson.JsonArray();
+            for (String line : capturer.getCapturedOutput()) {
+                lines.add(line);
+            }
+            res.add("output", lines);
+            sendJson(exchange, 200, res);
+        }
+    }
+
+    /**
+     * Handles POST /api/remove-whitelist
+     */
+    static class RemoveWhitelistHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if (exchange.getRequestMethod().equalsIgnoreCase("OPTIONS")) { handlePreflight(exchange); return; }
+            if (!checkRateLimit(exchange)) return;
+            if (!exchange.getRequestMethod().equalsIgnoreCase("POST")) { sendJson(exchange, 405, "Method not allowed"); return; }
+            String authHeader = exchange.getRequestHeaders().getFirst("X-Admin-Password");
+            if (!config.adminPassword.equals(authHeader)) { sendJson(exchange, 401, "Unauthorized"); return; }
+
+            String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            JsonObject json = gson.fromJson(body, JsonObject.class);
+            String username = json.get("username").getAsString();
+
+            plugin.getServer().getCommandManager().executeAsync(
+                    plugin.getServer().getConsoleCommandSource(),
+                    config.whitelistRemoveCommand + username
+            );
+            
+            sendJson(exchange, 200, "{\"message\":\"Sent remove command\"}");
+        }
+    }
+
+    /**
+     * Handles POST /api/delete-invite
+     */
+    static class DeleteInviteHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if (exchange.getRequestMethod().equalsIgnoreCase("OPTIONS")) { handlePreflight(exchange); return; }
+            if (!checkRateLimit(exchange)) return;
+            if (!exchange.getRequestMethod().equalsIgnoreCase("POST")) { sendJson(exchange, 405, "Method not allowed"); return; }
+            String authHeader = exchange.getRequestHeaders().getFirst("X-Admin-Password");
+            if (!config.adminPassword.equals(authHeader)) { sendJson(exchange, 401, "Unauthorized"); return; }
+
+            String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            JsonObject json = gson.fromJson(body, JsonObject.class);
+            String token = json.get("token").getAsString();
+
+            InviteStorage.deleteInvite(token);
+            sendJson(exchange, 200, "{\"message\":\"Invite deleted\"}");
+        }
+    }
+    /**
+     * Handles POST /api/add-whitelist
+     */
+    static class AddWhitelistHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if (exchange.getRequestMethod().equalsIgnoreCase("OPTIONS")) { handlePreflight(exchange); return; }
+            if (!checkRateLimit(exchange)) return;
+            if (!exchange.getRequestMethod().equalsIgnoreCase("POST")) { sendJson(exchange, 405, "Method not allowed"); return; }
+            String authHeader = exchange.getRequestHeaders().getFirst("X-Admin-Password");
+            if (!config.adminPassword.equals(authHeader)) { sendJson(exchange, 401, "Unauthorized"); return; }
+
+            String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            JsonObject json = gson.fromJson(body, JsonObject.class);
+            String username = json.get("username").getAsString();
+
+            plugin.getServer().getCommandManager().executeAsync(
+                    plugin.getServer().getConsoleCommandSource(),
+                    config.whitelistCommand + username
+            );
+            
+            sendJson(exchange, 200, "{\"message\":\"Sent add command\"}");
         }
     }
 }

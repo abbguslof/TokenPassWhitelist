@@ -222,6 +222,11 @@ public class InviteStorage {
         return Collections.unmodifiableMap(invites);
     }
 
+    public static void deleteInvite(String token) {
+        invites.remove(token);
+        saveToDisk();
+    }
+
     public static Map<String, PermanentLink> getAllPermanentLinks() {
         return Collections.unmodifiableMap(permanentLinks);
     }

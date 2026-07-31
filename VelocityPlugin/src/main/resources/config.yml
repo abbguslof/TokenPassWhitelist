@@ -13,3 +13,10 @@ whitelist_command: "whitelist add "
 
 # Password required to generate invites via admin panel
 admin_password: "change_me_now"
+
+# Command to execute to list the current whitelist
+whitelist_list_command: "whitelist list"
+
+# Command to execute to remove a player from the whitelist
+# The username will be appended to this string, so keep a trailing space if needed!
+whitelist_remove_command: "whitelist remove "

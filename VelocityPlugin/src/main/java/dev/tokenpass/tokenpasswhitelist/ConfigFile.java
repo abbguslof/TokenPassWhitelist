@@ -16,14 +16,18 @@ public class ConfigFile {
     public final String apiSecret;
     public final String websiteDomain;
     public final String whitelistCommand;
+    public final String whitelistListCommand;
+    public final String whitelistRemoveCommand;
     public final String adminPassword;
 
-    public ConfigFile(String ip, int port, String apiSecret, String websiteDomain, String whitelistCommand, String adminPassword) {
+    public ConfigFile(String ip, int port, String apiSecret, String websiteDomain, String whitelistCommand, String whitelistListCommand, String whitelistRemoveCommand, String adminPassword) {
         this.ip = ip;
         this.port = port;
         this.apiSecret = apiSecret;
         this.websiteDomain = websiteDomain;
         this.whitelistCommand = whitelistCommand;
+        this.whitelistListCommand = whitelistListCommand;
+        this.whitelistRemoveCommand = whitelistRemoveCommand;
         this.adminPassword = adminPassword;
     }
 
@@ -50,6 +54,8 @@ public class ConfigFile {
                     node.node("api_secret").getString("REPLACE_ME"),
                     node.node("website_domain").getString("example.com"),
                     node.node("whitelist_command").getString("whitelist add "),
+                    node.node("whitelist_list_command").getString("whitelist list"),
+                    node.node("whitelist_remove_command").getString("whitelist remove "),
                     node.node("admin_password").getString("change_me_now")
             );
 

@@ -1,0 +1,1 @@
+sed -i '/public static Map<String, PermanentLink> getAllPermanentLinks/i \    public static void deleteInvite(String token) {\n        invites.remove(token);\n        saveToDisk();\n    }\n' VelocityPlugin/src/main/java/dev/tokenpass/tokenpasswhitelist/InviteStorage.java

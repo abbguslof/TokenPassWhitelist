@@ -10,7 +10,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	let url = `${API_URL}/api/${action}`;
 	let method = 'POST';
-	if (action === 'invites' || action === 'players') method = 'GET';
+	if (action === 'invites' || action === 'players' || action === 'whitelist-list') method = 'GET';
 	
 	try {
 		const res = await fetch(url, {
