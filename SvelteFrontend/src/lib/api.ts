@@ -1,9 +1,11 @@
+import { AUTH_TOKEN } from '$env/static/private';
+
 export async function whitelistUser(token: string, username: string) {
 	const res = await fetch(`${import.meta.env.VITE_API_URL}/api/whitelist`, {
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/json',
-			'X-Auth-Token': import.meta.env.VITE_AUTH_TOKEN
+			'X-Auth-Token': AUTH_TOKEN
 		},
 		body: JSON.stringify({ token, username })
 	});
@@ -15,7 +17,7 @@ export async function checkToken(token: string) {
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/json',
-			'X-Auth-Token': import.meta.env.VITE_AUTH_TOKEN
+			'X-Auth-Token': AUTH_TOKEN
 		},
 		body: JSON.stringify({ token })
 	});

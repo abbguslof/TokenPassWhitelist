@@ -7,14 +7,19 @@ import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.ProxyServer;
 
 import javax.inject.Inject;
+import org.slf4j.Logger;
 import java.nio.file.Path;
-import java.util.logging.Logger;
 
+/**
+ * Main entry point for the TokenPassWhitelist Velocity plugin.
+ * Handles lifecycle events, dependency injection, and command registration.
+ */
 @Plugin(
         id = "tokenpasswhitelist",
         name = "TokenPassWhitelist",
         version = "1.0-SNAPSHOT",
-        authors = {"Gustav"}
+        description = "A secure, web-based invite whitelist system for Velocity",
+        authors = {"guslof"}
 )
 public class TokenPassWhitelist {
 
@@ -50,6 +55,7 @@ public class TokenPassWhitelist {
 
         // Save invites to yml file
         InviteStorage.loadFromDisk(getInvitesFile());
+        InviteStorage.loadPermanentLinksFromDisk(dataDirectory.resolve("permanent_links.yml"));
 
         logger.info("[TokenPassWhitelist] Plugin initialized successfully.");
     }

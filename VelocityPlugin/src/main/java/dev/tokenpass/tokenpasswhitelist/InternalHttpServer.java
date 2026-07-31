@@ -38,6 +38,11 @@ public class InternalHttpServer {
             server.createContext("/api/whitelist", new WhitelistHandler());
             server.createContext("/api/invite-admin", new AdminInviteHandler());
             server.createContext("/api/check-token", new CheckTokenHandler());
+            server.createContext("/api/invites", new GetInvitesHandler());
+            server.createContext("/api/players", new GetPlayersHandler());
+            server.createContext("/api/permanent-link", new CreatePermanentLinkHandler());
+            server.createContext("/api/permanent-link-info", new GetPermanentLinkInfoHandler());
+            server.createContext("/api/permanent-whitelist", new WhitelistPermanentHandler());
             server.createContext("/ping", new PingHandler());
             server.setExecutor(null); // default executor
 
@@ -49,6 +54,11 @@ public class InternalHttpServer {
         }
     }
 
+    /**
+     * Handles POST /api/whitelist
+     * Redeems a one-time use token and whitelists the given user.
+     * Requires the X-Auth-Token header matching the configured api_secret.
+     */
     static class WhitelistHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
@@ -80,6 +90,11 @@ public class InternalHttpServer {
             String token = json.get("token").getAsString();
             String username = json.get("username").getAsString();
 
+            if (!username.matches("^[a-zA-Z0-9_]{3,16}$")) {
+                sendJson(exchange, 400, "Invalid username format");
+                return;
+            }
+
             InviteStorage.InviteEntry entry = InviteStorage.useToken(token, username);
             if (entry == null) {
                 sendJson(exchange, 400, "Invalid or expired token");
@@ -106,6 +121,11 @@ public class InternalHttpServer {
         }
     }
 
+    /**
+     * Handles POST /api/invite-admin
+     * Creates a new one-time use invite token from the admin panel.
+     * Requires the X-Admin-Password header matching the configured admin_password.
+     */
     static class AdminInviteHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
@@ -144,6 +164,11 @@ public class InternalHttpServer {
         }
     }
 
+    /**
+     * Handles POST /api/check-token
+     * Validates whether a given one-time token exists and is unused.
+     * Requires the X-Auth-Token header.
+     */
     static class CheckTokenHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
@@ -177,6 +202,175 @@ public class InternalHttpServer {
         }
     }
 
+    /**
+     * Handles GET /api/invites
+     * Retrieves all invites (active and claimed) for the dashboard tree.
+     * Requires the X-Admin-Password header.
+     */
+    static class GetInvitesHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if (exchange.getRequestMethod().equalsIgnoreCase("OPTIONS")) { handlePreflight(exchange); return; }
+            if (!checkRateLimit(exchange)) return;
+            if (!exchange.getRequestMethod().equalsIgnoreCase("GET")) { sendJson(exchange, 405, "Method not allowed"); return; }
+            String authHeader = exchange.getRequestHeaders().getFirst("X-Admin-Password");
+            if (!config.adminPassword.equals(authHeader)) { sendJson(exchange, 401, "Unauthorized"); return; }
+
+            com.google.gson.JsonArray arr = new com.google.gson.JsonArray();
+            for (Map.Entry<String, InviteStorage.InviteEntry> e : InviteStorage.getAllInvites().entrySet()) {
+                JsonObject obj = new JsonObject();
+                obj.addProperty("token", e.getKey());
+                obj.addProperty("inviterUUID", e.getValue().inviterUUID == null ? null : e.getValue().inviterUUID.toString());
+                obj.addProperty("inviterName", e.getValue().inviterName);
+                obj.addProperty("targetName", e.getValue().targetName);
+                obj.addProperty("createdAt", e.getValue().createdAt);
+                arr.add(obj);
+            }
+            JsonObject res = new JsonObject();
+            res.add("invites", arr);
+            sendJson(exchange, 200, res);
+        }
+    }
+
+    /**
+     * Handles GET /api/players
+     * Retrieves a list of all currently online players across the proxy.
+     * Requires the X-Admin-Password header.
+     */
+    static class GetPlayersHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if (exchange.getRequestMethod().equalsIgnoreCase("OPTIONS")) { handlePreflight(exchange); return; }
+            if (!checkRateLimit(exchange)) return;
+            if (!exchange.getRequestMethod().equalsIgnoreCase("GET")) { sendJson(exchange, 405, "Method not allowed"); return; }
+            String authHeader = exchange.getRequestHeaders().getFirst("X-Admin-Password");
+            if (!config.adminPassword.equals(authHeader)) { sendJson(exchange, 401, "Unauthorized"); return; }
+
+            com.google.gson.JsonArray arr = new com.google.gson.JsonArray();
+            for (com.velocitypowered.api.proxy.Player p : plugin.getServer().getAllPlayers()) {
+                JsonObject obj = new JsonObject();
+                obj.addProperty("uuid", p.getUniqueId().toString());
+                obj.addProperty("username", p.getUsername());
+                arr.add(obj);
+            }
+            JsonObject res = new JsonObject();
+            res.add("players", arr);
+            sendJson(exchange, 200, res);
+        }
+    }
+
+    /**
+     * Handles POST /api/permanent-link
+     * Generates a new permanent, reusable invite link.
+     * Requires the X-Admin-Password header.
+     */
+    static class CreatePermanentLinkHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if (exchange.getRequestMethod().equalsIgnoreCase("OPTIONS")) { handlePreflight(exchange); return; }
+            if (!checkRateLimit(exchange)) return;
+            if (!exchange.getRequestMethod().equalsIgnoreCase("POST")) { sendJson(exchange, 405, "Method not allowed"); return; }
+            String authHeader = exchange.getRequestHeaders().getFirst("X-Admin-Password");
+            if (!config.adminPassword.equals(authHeader)) { sendJson(exchange, 401, "Unauthorized"); return; }
+
+            String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            JsonObject json = gson.fromJson(body, JsonObject.class);
+            String creatorName = json.has("creatorName") ? json.get("creatorName").getAsString() : "[admin]";
+            String passwordHash = json.has("passwordHash") && !json.get("passwordHash").isJsonNull() ? json.get("passwordHash").getAsString() : null;
+
+            String id = UUID.randomUUID().toString();
+            InviteStorage.createPermanentLink(id, creatorName, passwordHash);
+
+            JsonObject res = new JsonObject();
+            res.addProperty("id", id);
+            sendJson(exchange, 200, res);
+        }
+    }
+
+    /**
+     * Handles POST /api/permanent-link-info
+     * Returns public information about a permanent link (e.g. if it requires a password).
+     * Requires the X-Auth-Token header.
+     */
+    static class GetPermanentLinkInfoHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if (exchange.getRequestMethod().equalsIgnoreCase("OPTIONS")) { handlePreflight(exchange); return; }
+            if (!checkRateLimit(exchange)) return;
+            if (!exchange.getRequestMethod().equalsIgnoreCase("POST")) { sendJson(exchange, 405, "Method not allowed"); return; }
+            String authHeader = exchange.getRequestHeaders().getFirst("X-Auth-Token");
+            if (!config.apiSecret.equals(authHeader)) { sendJson(exchange, 401, "Unauthorized"); return; }
+
+            String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            JsonObject json = gson.fromJson(body, JsonObject.class);
+            String id = json.get("id").getAsString();
+
+            InviteStorage.PermanentLink link = InviteStorage.getPermanentLink(id);
+            if (link == null) {
+                sendJson(exchange, 404, "Not found");
+                return;
+            }
+
+            JsonObject res = new JsonObject();
+            res.addProperty("hasPassword", link.passwordHash != null);
+            res.addProperty("creatorName", link.creatorName);
+            sendJson(exchange, 200, res);
+        }
+    }
+
+    /**
+     * Handles POST /api/permanent-whitelist
+     * Claims a permanent link, validating the password if required, and whitelists the user.
+     * Requires the X-Auth-Token header.
+     */
+    static class WhitelistPermanentHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if (exchange.getRequestMethod().equalsIgnoreCase("OPTIONS")) { handlePreflight(exchange); return; }
+            if (!checkRateLimit(exchange)) return;
+            if (!exchange.getRequestMethod().equalsIgnoreCase("POST")) { sendJson(exchange, 405, "Method not allowed"); return; }
+            String authHeader = exchange.getRequestHeaders().getFirst("X-Auth-Token");
+            if (!config.apiSecret.equals(authHeader)) { sendJson(exchange, 401, "Unauthorized"); return; }
+
+            String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            JsonObject json = gson.fromJson(body, JsonObject.class);
+            String id = json.get("id").getAsString();
+            String username = json.get("username").getAsString();
+            String passwordHash = json.has("passwordHash") && !json.get("passwordHash").isJsonNull() ? json.get("passwordHash").getAsString() : null;
+
+            if (!username.matches("^[a-zA-Z0-9_]{3,16}$")) {
+                sendJson(exchange, 400, "Invalid username format");
+                return;
+            }
+
+            InviteStorage.PermanentLink link = InviteStorage.getPermanentLink(id);
+            if (link == null) {
+                sendJson(exchange, 404, "Invalid link");
+                return;
+            }
+
+            if (link.passwordHash != null && !link.passwordHash.equals(passwordHash)) {
+                sendJson(exchange, 401, "Invalid password");
+                return;
+            }
+
+            String dummyToken = "perm_" + UUID.randomUUID().toString();
+            InviteStorage.inviteFromWeb(dummyToken, link.creatorName, username);
+
+            plugin.getServer().getCommandManager().executeAsync(
+                    plugin.getServer().getConsoleCommandSource(),
+                    config.whitelistCommand + username
+            );
+
+            sendJson(exchange, 200, "User whitelisted successfully");
+        }
+    }
+
+    /**
+     * Handles GET /ping
+     * Simple health check endpoint used to verify the server is running.
+     * No authentication required.
+     */
     static class PingHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
@@ -191,6 +385,11 @@ public class InternalHttpServer {
 
     // --- Rate limiting logic ---
     private static boolean checkRateLimit(HttpExchange exchange) throws IOException {
+        if (Math.random() < 0.05) {
+            long now = Instant.now().getEpochSecond();
+            rateLimits.entrySet().removeIf(entry -> entry.getValue().expiresAt < now);
+        }
+
         String ip = exchange.getRemoteAddress().getAddress().getHostAddress();
         RequestBucket bucket = rateLimits.computeIfAbsent(ip, k -> new RequestBucket());
 
@@ -226,10 +425,19 @@ public class InternalHttpServer {
         }
     }
 
+    private static void setCorsHeaders(HttpExchange exchange) {
+        String origin = exchange.getRequestHeaders().getFirst("Origin");
+        if (origin != null && (origin.endsWith(config.websiteDomain) || origin.startsWith("http://localhost"))) {
+            exchange.getResponseHeaders().set("Access-Control-Allow-Origin", origin);
+        } else {
+            exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "https://" + config.websiteDomain);
+        }
+        exchange.getResponseHeaders().set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+        exchange.getResponseHeaders().set("Access-Control-Allow-Headers", "Content-Type, X-Auth-Token, X-Admin-Password");
+    }
+
     private static void handlePreflight(HttpExchange exchange) throws IOException {
-        exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
-        exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-        exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type, X-Auth-Token, X-Admin-Password");
+        setCorsHeaders(exchange);
         exchange.sendResponseHeaders(204, -1); // No content
         exchange.close();
     }
@@ -243,9 +451,7 @@ public class InternalHttpServer {
     private static void sendJson(HttpExchange exchange, int code, JsonObject json) throws IOException {
         byte[] bytes = json.toString().getBytes(StandardCharsets.UTF_8);
         exchange.getResponseHeaders().set("Content-Type", "application/json");
-        exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
-        exchange.getResponseHeaders().set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-        exchange.getResponseHeaders().set("Access-Control-Allow-Headers", "Content-Type, X-Auth-Token, X-Admin-Password");
+        setCorsHeaders(exchange);
         exchange.sendResponseHeaders(code, bytes.length);
         try (OutputStream os = exchange.getResponseBody()) {
             os.write(bytes);

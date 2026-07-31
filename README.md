@@ -11,10 +11,10 @@ A modern, secure invite-based whitelisting system for Minecraft servers running 
 
 TokenPassWhitelist transforms the traditional Minecraft whitelist process into a secure, user-friendly system:
 
-1. **Server administrators or trusted players** generate unique invite links using in-game commands or a web admin panel
-2. **Invited users** click the link, complete CAPTCHA verification, and confirm their Minecraft username
-3. **The system automatically** adds them to the server whitelist and notifies the inviter
-4. **Everyone benefits** from a trusted community with verified members
+1. **Server administrators or trusted players** generate unique invite links using in-game commands or a feature-rich web admin panel.
+2. **Invited users** click the link, complete CAPTCHA verification, and confirm their Minecraft username.
+3. **The system automatically** adds them to the server whitelist and notifies the inviter.
+4. **Everyone benefits** from a trusted community with verified members.
 
 ## 🏗️ System Architecture
 
@@ -33,51 +33,46 @@ TokenPassWhitelist transforms the traditional Minecraft whitelist process into a
 
 ### Core Components
 
-- **[Velocity Plugin](VelocityPlugin/)** - Server-side Java plugin with HTTP API
-- **[Web Frontend](SvelteFrontend/)** - Modern SvelteKit application for invite management
-- **Security Layer** - CAPTCHA verification, rate limiting, and token validation
+- **[Velocity Plugin](VelocityPlugin/)** - Server-side Java plugin with HTTP API.
+- **[Web Frontend](SvelteFrontend/)** - Modern SvelteKit application for invite management.
+- **Security Layer** - CAPTCHA verification, rate limiting, and token validation.
 
 ## ✨ Key Features
 
-### 🔐 Security First
-- **One-time invite tokens** that expire after use
-- **CAPTCHA protection** against automated abuse
-- **Rate limiting** on all API endpoints
-- **Admin password protection** for administrative functions
-- **CORS-compliant API** for secure cross-origin requests
-
 ### 🎮 Player Experience
-- **In-game invite generation** with `/invite` command
-- **Clickable invite links** in chat with hover tooltips
-- **Real-time notifications** when invites are redeemed
-- **Invite tracking** with `/invite list` command
-- **Mobile-friendly** web interface
+- **In-game invite generation** with `/invite` command.
+- **Clickable invite links** in chat with hover tooltips.
+- **Real-time notifications** when invites are redeemed.
+- **Invite tracking** with `/invite list` command.
+- **Mobile-friendly** web interface.
 
-### 👨‍💼 Administrative Control
-- **Web admin panel** for creating invites externally
-- **Persistent storage** with YAML-based data management
-- **Configurable whitelist commands** for different server setups
-- **Comprehensive logging** and error handling
+### 👨‍💼 Comprehensive Admin Dashboard
+- **Interactive Invite Tree**: Visualize who invited who with an interactive, draggable network graph built with `vis-network`.
+- **Live Online Players Tracker**: See exactly who is online across the proxy network in real-time.
+- **Whitelist History**: See a full history of all players whitelisted via the plugin, their inviting party, and the date they joined.
+- **Permanent Links**: Generate permanent public invite URLs. Optionally secure them with a password to prevent abuse.
+- **Single-Use Invites**: Generate standard one-time use tokens directly from the dashboard.
 
-### 🚀 Developer Friendly
-- **RESTful HTTP API** for external integrations
-- **TypeScript support** throughout the frontend
-- **Modular architecture** for easy customization
-- **Comprehensive documentation** and examples
+### 🔐 Security First
+- **One-time invite tokens** that expire after use.
+- **CAPTCHA protection** against automated abuse.
+- **Rate limiting** on all API endpoints.
+- **CORS-compliant API** for secure cross-origin requests.
+- **Secure Dashboard Authentication**: Password-protected dashboard with token-based internal routing.
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-- **Minecraft Server**: Velocity proxy (3.0+) with Java 17+
-- **Web Hosting**: Node.js environment for the frontend
-- **Domain**: For hosting the web interface (recommended)
-- **hCaptcha Account**: For CAPTCHA protection (free tier available)
+- **Minecraft Server**: Velocity proxy (3.0+) with Java 17+.
+- **Web Hosting**: Node.js environment for the frontend.
+- **Domain**: For hosting the web interface.
+- **hCaptcha Account**: For CAPTCHA protection (free tier available).
 
 ### Installation Overview
 
 1. **Set up the Velocity Plugin**
    ```bash
-   cd TokenPassWhitelist/
+   cd VelocityPlugin/
    mvn clean package
    # Copy target/TokenPassWhitelist-*.jar to your Velocity plugins/ folder
    ```
@@ -90,208 +85,132 @@ TokenPassWhitelist transforms the traditional Minecraft whitelist process into a
    api_secret: your-secure-secret
    admin_password: your-admin-password
    website_domain: your-domain.com
+   whitelist_command: whitelist add
    ```
 
 3. **Deploy the Frontend**
    ```bash
-   cd frontend/
+   cd SvelteFrontend/
    npm install
    npm run build
-   # Deploy the build/ directory to your web server
+   # Use PM2 to run the build continuously:
+   npm install -g pm2
+   pm2 start build/index.js --name "tokenpass-frontend"
    ```
 
-4. **Connect the Systems**
-   - Configure your reverse proxy to route `/api/*` to the plugin
-   - Set environment variables in your frontend deployment
-   - Test the integration with health checks
+## 🌍 Network & Proxy Setup Guide
 
-📚 **Detailed Setup Instructions**: See component-specific README files for complete installation guides.
+Setting up the network correctly is the most important part of this project. The frontend needs to securely communicate with the backend API via your domain.
 
-## 🔧 Configuration
+### 🌐 Single Domain Setup (Web + Minecraft)
+Because Minecraft relies on a specific port (like `25565`) or SRV records, while web traffic uses ports `80` and `443`, you can use the **exact same domain** (e.g., `play.yourdomain.com`) for both the game server and the website!
 
-### Environment Variables (Frontend)
-```env
-# Required for frontend functionality
-VITE_BRAND_NAME="Your Server Name"
-VITE_SERVER_IP="your-server.com"
-VITE_API_URL="https://your-domain.com"
-VITE_HCAPTCHA_SITE_KEY="your-site-key"
+- **Minecraft Traffic (Port 25565)** goes directly to your Velocity proxy.
+- **Web Traffic (Port 80/443)** goes to your Reverse Proxy, which routes users to the frontend, and API calls to the Velocity plugin.
 
-# Required for backend communication
-AUTH_TOKEN="matches-plugin-api-secret"
-ADMIN_PASSWORD="matches-plugin-admin-password"
-HCAPTCHA_SECRET="your-secret-key"
-```
+*(Note: If using Cloudflare to hide your IP, see the Cloudflare section below, as you may need a separate subdomain for the Minecraft server since Cloudflare's free tier only proxies web traffic).*
 
-### Plugin Configuration (config.yml)
+### 1. Backend IP Binding (`config.yml` -> `ip`)
+The IP you set in the Velocity plugin determines how the API server listens for connections:
+- **`127.0.0.1` (Localhost)**: Use this if you are running a **Baremetal/VPS** setup and your Reverse Proxy (e.g. Nginx) is running on the *same machine*. This ensures the API is completely hidden from the public web and can only be accessed through the proxy.
+- **`0.0.0.0` (All Interfaces)**: Use this if you are running inside a **Docker Container, Pterodactyl Wings, or Proxmox LXC**. This allows the API to bind to the container's network bridge so your reverse proxy (which is likely in a different container or on the host) can reach it. Make sure you allocate the API port (default `5000`) in your panel!
+
+### 2. Reverse Proxy Configurations (Path-Based Routing)
+
+To make the single domain setup work for both the website and the backend API, your reverse proxy uses **path-based routing**:
+- Any request starting with `/api/` (e.g., `play.yourdomain.com/api/whitelist`) is routed to the Velocity plugin's port (default `5000`).
+- Any other request (e.g., `play.yourdomain.com/admin`) is routed to the Node.js Svelte frontend port (default `3000`).
+
+This setup completely avoids CORS errors and keeps your network clean.
+
+#### Option A: Nginx Proxy Manager (NPM)
+1. Add a **Proxy Host** for `your-domain.com`.
+2. Under the **Details** tab, point the Forward Host/IP to your Frontend (Node.js) server IP and Port (e.g. `3000`).
+3. Under the **Custom Locations** tab, add a new location:
+   - **Location:** `/api/`
+   - **Forward Host/IP:** Your Velocity server IP.
+   - **Forward Port:** `5000` (or your configured plugin port).
+4. Save and ensure SSL is enabled.
+
+#### Option B: Traefik (Docker Compose)
+If you run your frontend and proxy in Docker, add these labels to your frontend container:
 ```yaml
-ip: 0.0.0.0                    # API server bind address
-port: 5000                     # API server port
-api_secret: REPLACE_ME         # Must match frontend AUTH_TOKEN
-admin_password: change_me_now  # Must match frontend ADMIN_PASSWORD
-website_domain: example.com    # Your frontend domain
-whitelist_command: whitelist add  # Server whitelist command
+labels:
+  - "traefik.enable=true"
+  - "traefik.http.routers.frontend.rule=Host(`your-domain.com`)"
+  - "traefik.http.services.frontend.loadbalancer.server.port=3000"
+  # Route /api/ to Velocity
+  - "traefik.http.routers.backend.rule=Host(`your-domain.com`) && PathPrefix(`/api/`)"
+  - "traefik.http.services.backend.loadbalancer.server.port=5000"
+  - "traefik.http.services.backend.loadbalancer.server.url=http://VELOCITY_SERVER_IP:5000"
 ```
 
-## 🎮 Usage
+#### Option C: Standard Nginx
+```nginx
+server {
+    listen 443 ssl;
+    server_name your-domain.com;
 
-### For Players
-1. **Generate an invite**: Use `/invite` in-game to create a link for a friend
-2. **Share the link**: Copy the clickable link from chat and send it
-3. **Track your invites**: Use `/invite list` to see who has redeemed your invites
+    # Route /api/ to Velocity Plugin
+    location /api/ {
+        proxy_pass http://VELOCITY_IP:5000/api/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
 
-### For Administrators
-1. **Access admin panel**: Visit `https://your-domain.com/admin`
-2. **Create invites**: Generate links for specific usernames
-3. **Monitor activity**: Check server logs and invite lists
+    # Route everything else to Svelte Frontend
+    location / {
+        proxy_pass http://FRONTEND_IP:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+```
 
-### For Invited Users
-1. **Click the invite link**: Opens the registration page
-2. **Complete CAPTCHA**: Verify you're human
-3. **Confirm username**: Your Minecraft username is pre-filled
-4. **Join the server**: Get immediate whitelist access
+### 3. Cloudflare Integration
+
+If you use Cloudflare for DNS, follow these crucial steps to ensure the application functions correctly:
+1. **Proxy Status:** You can safely set your DNS record to **Proxied (Orange Cloud)**.
+2. **SSL/TLS Mode:** Set this to **Full (Strict)**. Ensure you have a valid SSL certificate on your reverse proxy (Let's Encrypt is perfect).
+3. **Caching Rules:** The `/api/*` endpoints *must not be cached*. Go to Cloudflare Rules -> Page Rules and create a rule:
+   - **URL:** `your-domain.com/api/*`
+   - **Setting:** Cache Level -> Bypass
+   *(Note: The Velocity API sets `Cache-Control: no-cache` by default, but this rule guarantees Cloudflare won't interfere).*
 
 ## 📁 Project Structure
 
 ```
 VelocityPlugin/
-├── README.md                    # This file - project overview
-├── TokenPassWhitelist/          # Velocity plugin (Java)
-│   ├── README.md               # Plugin-specific documentation
-│   ├── src/main/java/          # Plugin source code
-│   ├── src/main/resources/     # Plugin configuration
-│   └── pom.xml                 # Maven build configuration
-└── SvelteFrontend/                   # Web interface (SvelteKit)
-    ├── README.md              # Frontend-specific documentation
-    ├── src/                   # Frontend source code
-    ├── package.json           # Node.js dependencies
-    └── build/                 # Production build output
+├── README.md                    # Plugin-specific documentation
+├── src/main/java/               # Java 17+ source code
+└── src/main/resources/          # Plugin configurations
+SvelteFrontend/
+├── README.md                    # Frontend-specific documentation
+├── src/                         # SvelteKit source code
+└── package.json                 # Node.js dependencies
 ```
-
-## 🔌 API Reference
-
-The plugin exposes a RESTful HTTP API for frontend communication:
-
-| Endpoint | Method | Purpose | Authentication |
-|----------|--------|---------|----------------|
-| `/api/whitelist` | POST | Redeem invite token | API Secret |
-| `/api/check-token` | POST | Validate token | API Secret |
-| `/api/invite-admin` | POST | Admin create invite | Admin Password |
-| `/ping` | GET | Health check | None |
-
-**Full API documentation**: See [VelocityPlugin/README.md](VelocityPlugin/README.md#-internal-http-api)
-
-## 🛡️ Security Features
-
-### Token Security
-- **Cryptographically secure** token generation
-- **One-time use** tokens that expire after redemption
-- **UUID-based** invite tracking prevents guessing
-
-### Rate Limiting
-- **5 requests per 10 seconds** per IP address
-- **Separate limits** for admin and user endpoints
-- **Automatic cleanup** of expired rate limit entries
-
-### Input Validation
-- **Server-side validation** of all user inputs
-- **Username sanitization** and format checking
-- **CAPTCHA verification** on all user actions
-
-### Network Security
-- **CORS-compliant** API with proper headers
-- **Authentication tokens** for all sensitive operations
-- **HTTPS-ready** with secure cookie handling
-
-## 🚀 Deployment
-
-### Recommended Architecture
-
-```
-Internet → Reverse Proxy → Web Frontend
-                ↓
-            Minecraft Server ← Velocity Plugin
-```
-
-### Production Checklist
-
-- [ ] **Change default passwords** in plugin configuration
-- [ ] **Set up HTTPS** for the web frontend
-- [ ] **Configure reverse proxy** for API routing
-- [ ] **Set secure environment variables**
-- [ ] **Test invite flow** end-to-end
-- [ ] **Monitor server logs** for errors
-- [ ] **Set up backups** for invite data
-
-**Deployment Guides**: See component README files for detailed deployment instructions.
 
 ## 🤝 Contributing
 
-We welcome contributions! Here's how you can help:
+This project is built for the community, and we welcome contributions from all skill levels! Whether you're fixing a bug, adding a new feature, or simply correcting a typo in the documentation, your help is appreciated. 
 
-1. **Fork the repository** and create a feature branch
-2. **Follow the coding standards** established in each component
-3. **Add tests** for new functionality where applicable
-4. **Update documentation** for any API or configuration changes
-5. **Submit a pull request** with a clear description
+Here's how you can help:
+1. **Fork the repository** and create a feature branch.
+2. **Follow the coding standards** established in each component.
+3. **Submit a pull request** with a clear description of your changes.
 
-### Development Setup
-```bash
-# Clone the repository
-git clone https://github.com/abbguslof/TokenPassWhitelist.git
+If you have feature ideas or encounter bugs, please open an issue!
 
-# Set up the plugin
-cd TokenPassWhitelistVelocityPlugin/TokenPassWhitelist
-mvn clean compile
+## 💖 Acknowledgements
 
-# Set up the frontend
-cd ../frontend
-npm install
-npm run dev
-```
+Built with ❤️ for the Minecraft community by **guslof**.
 
-## 🐛 Troubleshooting
+A huge thank you to the server admins, community members, and players who provided feedback, tested early versions, and requested features like the Admin Dashboard and Invite Trees. This project exists to make running a safe, fun, and private Minecraft server as easy as possible for everyone, from young kids hosting for their friends to adults managing large networks.
 
-### Common Issues
-
-**Plugin won't start**
-- Verify Java 17+ and Velocity compatibility
-- Check plugin logs for specific errors
-- Ensure port is not already in use
-
-**Frontend can't reach API**
-- Verify `VITE_API_URL` configuration
-- Check reverse proxy configuration
-- Test API endpoints directly with curl
-
-**Invites not working**
-- Verify token generation in plugin logs
-- Check CAPTCHA configuration
-- Test network connectivity between components
-
-**Rate limiting triggered**
-- Wait for rate limit window to reset
-- Check for multiple users behind same IP
-- Consider adjusting limits in plugin code
+*We stand on the shoulders of giants:*
+- **Velocity Powered** for the blazing fast proxy API.
+- **SvelteKit** for making frontend development a joy.
+- **vis-network** for the beautiful invite tree visualization.
 
 ## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- **Velocity Team** for the excellent proxy platform
-- **Svelte Team** for the modern web framework
-- **hCaptcha** for free CAPTCHA services
-- **Minecraft Community** for inspiration and feedback
-
-## 📞 Support
-
-- **Plugin Issues**: Check [VelocityPlugin/README.md](VelocityPlugin/README.md)
-- **Frontend Issues**: Check [SvelteFrontend/README.md](SvelteFrontend/README.md)
-- **General Questions**: Open an issue on GitHub
-- **Security Concerns**: Open an issue on GitHub
-
----
-
-**Built with ❤️ for the Minecraft community**
+This project is open-source and licensed under the MIT License - see the [LICENSE](LICENSE) file for details. You are free to use, modify, and distribute this software as you see fit for your communities.

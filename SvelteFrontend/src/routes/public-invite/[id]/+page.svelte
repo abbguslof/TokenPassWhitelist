@@ -3,11 +3,19 @@
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 
+	/**
+	 * State Management
+	 * id: The unique permanent link ID extracted from the route parameter
+	 * hasPassword: True if the backend indicates this link is password-protected
+	 */
 	let username = '';
+	let password = '';
 	let error: string | null = null;
 	let submitting = false;
 	let valid = false;
-	let token = $page.params.token;
+	let hasPassword = false;
+	let creatorName = '';
+	let id = $page.params.id;
 	let captchaToken = '';
 	let captchaLoaded = false;
 	let captchaContainer: HTMLElement;
@@ -20,19 +28,26 @@
 
 	onMount(async () => {
 		try {
-			const res = await fetch(`/invite/${token}`);
+			const res = await fetch(`/public-invite/${id}`);
 			if (res.ok) {
+				const data = await res.json();
 				valid = true;
+				hasPassword = data.hasPassword;
+				creatorName = data.creatorName;
 				setTimeout(initializeCaptcha, 100);
 			} else {
 				const data = await res.json();
-				error = data.message || "Invalid or expired invite link.";
+				error = data.message || "Invalid or expired permanent link.";
 			}
 		} catch {
-			error = "Failed to validate invite link.";
+			error = "Failed to validate link.";
 		}
 	});
 
+	/**
+	 * Initializes the hCaptcha widget. 
+	 * It polls for the global hcaptcha object since the script is loaded asynchronously.
+	 */
 	function initializeCaptcha() {
 		if (!captchaContainer) return;
 
@@ -66,6 +81,10 @@
 		}, 10000);
 	}
 
+	/**
+	 * Submits the form data to the local +server.ts proxy.
+	 * Includes the captchaToken, username, and conditionally the password.
+	 */
 	async function submit() {
 		if (!captchaToken) {
 			error = "Please complete the CAPTCHA";
@@ -76,12 +95,10 @@
 		error = null;
 
 		try {
-			const res = await fetch(`/invite/${token}`, {
+			const res = await fetch(`/public-invite/${id}`, {
 				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({ username, captchaToken })
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ username, captchaToken, password })
 			});
 
 			const data = await res.json();
@@ -102,22 +119,30 @@
 	<div class="container"><p class="error">{error}</p></div>
 {:else if valid}
 	<div class="container">
-		<h1>You're invited to {import.meta.env.VITE_BRAND_NAME}</h1>
+		<h1>Join {import.meta.env.VITE_BRAND_NAME}</h1>
+		<p class="subtitle">Invited by <strong>{creatorName}</strong></p>
+		
 		<form on:submit|preventDefault={submit}>
-			<input type="text" placeholder="Minecraft Username" bind:value={username} required pattern="[a-zA-Z0-9_]{3,16}" title="Valid Minecraft username (3-16 characters, letters, numbers, underscores)" disabled={submitting} />
+			<input type="text" placeholder="Minecraft Username" bind:value={username} required pattern="[a-zA-Z0-9_]{3,16}" title="Valid Minecraft username" disabled={submitting} />
+			
+			{#if hasPassword}
+				<input type="password" placeholder="Invite Password" bind:value={password} required disabled={submitting} />
+			{/if}
+
 			<div class="captcha">
 				<div class="h-captcha" bind:this={captchaContainer}></div>
 				{#if !captchaLoaded}
 					<p class="loading">Loading CAPTCHA...</p>
 				{/if}
 			</div>
-			<button type="submit" disabled={submitting || !username || !captchaToken}>
+			
+			<button type="submit" disabled={submitting || !username || !captchaToken || (hasPassword && !password)}>
 				{submitting ? 'Processing...' : 'Join Server'}
 			</button>
 		</form>
 	</div>
 {:else}
-	<div class="container"><p>Validating invite...</p></div>
+	<div class="container"><p>Validating link...</p></div>
 {/if}
 
 <svelte:head>
@@ -134,6 +159,10 @@
 		border-radius: 10px;
 		box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 		font-family: system-ui, sans-serif;
+	}
+	.subtitle {
+		color: #666;
+		margin-bottom: 2rem;
 	}
 	form {
 		display: flex;

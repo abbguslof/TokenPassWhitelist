@@ -63,15 +63,16 @@ Place this JAR inside your Velocity server's `plugins/` folder.
 
 ## 🧪 Running the Plugin
 
-1. Ensure Velocity is running
-2. After the plugin is placed in `plugins/`, start the server once to generate the config
-3. Edit the `config.yml` file with your desired settings (see below)
-4. Restart the server
+1. Ensure Velocity is running.
+2. After the plugin is placed in `plugins/`, start the server once to generate the configs.
+3. Edit the `config.yml` file with your desired settings (see below).
+4. Restart the server.
 
 ---
 
-## 🔧 Configuration (config.yml)
+## 🔧 Configuration (`config.yml` & `permanent_links.yml`)
 
+### `config.yml`
 ```yaml
 ip: 0.0.0.0                  # Bind IP for internal HTTP server
 port: 5000                   # Port for internal HTTP server
@@ -82,6 +83,9 @@ whitelist_command: whitelist add   # Command used to whitelist players
 ```
 
 **Important:** Make sure your port is accessible from wherever the frontend is hosted.
+
+### `permanent_links.yml`
+This file is automatically managed by the plugin and stores permanent invite URLs. You generally do not need to edit this file manually.
 
 ---
 
@@ -112,69 +116,14 @@ The plugin exposes a small HTTP server to interact with the invite system from t
 | POST | `/api/whitelist` | Redeems an invite, whitelists player | `X-Auth-Token` |
 | POST | `/api/check-token` | Checks if token is valid | `X-Auth-Token` |
 | POST | `/api/invite-admin` | Admin-only invite creation | `X-Admin-Password` |
+| GET | `/api/invites` | Get all invites (for Dashboard) | `X-Admin-Password` |
+| GET | `/api/players` | Get online players (for Dashboard) | `X-Admin-Password` |
+| POST | `/api/permanent-link` | Create a permanent link | `X-Admin-Password` |
+| POST | `/api/permanent-link-info` | Check if a permanent link has a password | `X-Auth-Token` |
+| POST | `/api/permanent-whitelist` | Redeem a permanent link | `X-Auth-Token` |
 | GET | `/ping` | Health check | None |
 
 All endpoints support CORS and preflight OPTIONS requests.
-
-### API Examples
-
-**Redeem an invite:**
-```bash
-curl -X POST http://localhost:5000/api/whitelist \
-  -H "X-Auth-Token: YOUR_API_SECRET" \
-  -H "Content-Type: application/json" \
-  -d '{"token": "invite-token", "username": "PlayerName"}'
-```
-
-**Check token validity:**
-```bash
-curl -X POST http://localhost:5000/api/check-token \
-  -H "X-Auth-Token: YOUR_API_SECRET" \
-  -H "Content-Type: application/json" \
-  -d '{"token": "invite-token"}'
-```
-
----
-
-## 📂 File Overview
-
-### `TokenPassWhitelist.java`
-- **Purpose:** Entry point for the plugin
-- **Responsibilities:**
-  - Registers the `/invite` command
-  - Initializes the HTTP server
-  - Loads configuration
-  - Sets up invite storage persistence
-
-### `InternalHttpServer.java`
-- **Purpose:** Embedded HTTP server using Java's built-in `HttpServer`
-- **Responsibilities:**
-  - Handles API endpoints for frontend integration
-  - Implements rate limiting (5 requests per 10 seconds per IP)
-  - Manages CORS headers for cross-origin requests
-  - Processes invite redemption and validation
-
-### `InviteStorage.java`
-- **Purpose:** Core invite management system
-- **Responsibilities:**
-  - Token creation, validation, and claiming
-  - YAML file-based persistence (`invites.yml`)
-  - Tracks inviter-invitee relationships
-  - Handles both player-generated and admin-generated invites
-
-### `InviteCommand.java`
-- **Purpose:** Handles the `/invite` command
-- **Responsibilities:**
-  - Generates new invite tokens for players
-  - Creates clickable invite links with Adventure components
-  - Lists player's existing invites and their status
-
-### `ConfigFile.java`
-- **Purpose:** Configuration management
-- **Responsibilities:**
-  - Loads settings from `config.yml`
-  - Auto-generates default config on first run
-  - Uses Sponge Configurate for YAML parsing
 
 ---
 
@@ -210,20 +159,6 @@ All invites (active and claimed) are saved to `invites.yml` in your plugin data 
 
 ---
 
-## 💡 Frontend Integration
-
-The plugin is designed to work seamlessly with the included Svelte frontend in the `../frontend/` folder. The frontend:
-
-- Accepts invite links (`https://yourdomain.com/invite/token`)
-- Validates tokens with the API
-- Whitelists players on form submission
-- Provides admin UI to generate invites
-- Handles error states and user feedback
-
-Read the `frontend/README.md` for setup instructions.
-
----
-
 ## 🌍 Deployment Tips
 
 1. **Reverse Proxy:** Use Nginx or Nginx Proxy Manager to proxy `/api/*` from your public domain to the plugin server port
@@ -242,24 +177,6 @@ location /api/ {
 
 ---
 
-## 🧪 Development Notes
-
-**Dependencies:**
-- Java 17+
-- Velocity API
-- Built-in HTTP server (no Netty or third-party web frameworks)
-- Gson for JSON parsing
-- Sponge Configurate for YAML support
-- Adventure API for rich text components
-
-**Architecture:**
-- Thread-safe invite storage with `ConcurrentHashMap`
-- Async command execution for whitelist operations
-- Event-driven player notifications
-- Immutable configuration objects
-
----
-
 ## 🔧 Troubleshooting
 
 **Plugin won't start:**
@@ -267,35 +184,17 @@ location /api/ {
 - Verify Velocity compatibility
 - Check server logs for specific errors
 
-**HTTP server not accessible:**
-- Verify port configuration in `config.yml`
-- Check firewall settings
-- Ensure IP binding is correct (`0.0.0.0` for all interfaces)
+**HTTP server not accessible (Connection Refused vs Connection Timeout):**
+- **Connection Refused**: Usually means the plugin isn't bound to the correct IP. If running in Docker (like Pterodactyl), change `ip:` in config to `0.0.0.0`.
+- **Connection Timeout**: Usually a firewall issue. Ensure your host machine's firewall allows traffic on port `5000`.
 
 **Invites not persisting:**
-- Check file permissions in plugin data directory
-- Verify `invites.yml` is being created
-- Look for I/O errors in server logs
-
----
-
-## 📥 Contributing
-
-Pull requests and suggestions are welcome! Please:
-
-- Follow Java conventions
-- Document public methods with JavaDoc
-- Test functionality before submitting
-- Maintain thread safety in concurrent operations
+- Check file permissions in plugin data directory.
+- Verify `invites.yml` is being created.
+- Look for I/O errors in server logs.
 
 ---
 
 ## 📄 License
 
 This project is licensed under the MIT License. See LICENSE for details.
-
----
-
-## ✨ Credits
-
-Built with ❤️ by @guslof and the community.

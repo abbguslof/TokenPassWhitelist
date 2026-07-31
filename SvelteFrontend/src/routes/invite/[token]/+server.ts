@@ -15,6 +15,15 @@ function getRealClientIP(request: Request): string {
 
 function checkRateLimit(clientIP: string): boolean {
 	const now = Date.now();
+	
+	if (Math.random() < 0.1) {
+		for (const [ip, data] of rateLimitStore.entries()) {
+			if (now > data.resetTime) {
+				rateLimitStore.delete(ip);
+			}
+		}
+	}
+	
 	const current = rateLimitStore.get(clientIP);
 
 	if (!current || now > current.resetTime) {
@@ -60,6 +69,10 @@ export const POST: RequestHandler = async ({ request, params }) => {
 
 	const { username, captchaToken } = await request.json();
 	const token = params.token;
+
+	if (!username || !/^[a-zA-Z0-9_]{3,16}$/.test(username)) {
+		return json({ message: 'Invalid username format' }, { status: 400 });
+	}
 
 	const API_URL = process.env.VITE_API_URL;
 	const AUTH_TOKEN = process.env.AUTH_TOKEN;
