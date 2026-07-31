@@ -205,7 +205,7 @@ If you have feature ideas or encounter bugs, please open an issue!
 
 Built with ❤️ for the Minecraft community by **guslof**.
 
-A huge thank you to the server admins, community members, and players who provided feedback, tested early versions, and requested features like the Admin Dashboard and Invite Trees. This project exists to make running a safe, fun, and private Minecraft server as easy as possible for everyone, from young kids hosting for their friends to adults managing large networks.
+A huge thank you to the server admins, community members, and players who provided feedback, tested early versions, and requested features like the Admin Dashboard and Invite Trees. This project exists to make running a safe, fun, and private Minecraft server as easy as possible for everyone.
 
 *We stand on the shoulders of giants:*
 - **Velocity Powered** for the blazing fast proxy API.
