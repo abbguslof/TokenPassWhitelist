@@ -200,7 +200,7 @@
 			<p class="error">{error}</p>
 		{:else}
 			{#if activeTab === 'tree'}
-				<div class="card full-height">
+				<div class="card">
 					<h3>Invite Tree Visualization</h3>
 					<div bind:this={networkContainer} class="network-canvas"></div>
 				</div>
@@ -362,7 +362,7 @@
 		margin-bottom: 2rem;
 	}
 	.full-height { height: calc(100vh - 8rem); display: flex; flex-direction: column; }
-	.network-canvas { flex: 1; border: 1px solid #ddd; border-radius: 4px; margin-top: 1rem; }
+	.network-canvas { height: 600px; width: 100%; border: 1px solid #ddd; border-radius: 4px; margin-top: 1rem; }
 	
 	table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
 	th, td { text-align: left; padding: 0.75rem; border-bottom: 1px solid #ddd; }
