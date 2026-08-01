@@ -14,7 +14,7 @@ TokenPassWhitelist transforms the traditional Minecraft whitelist process into a
 1. **Server administrators or trusted players** generate unique invite links using in-game commands or a feature-rich web admin panel.
 2. **Invited users** click the link, complete CAPTCHA verification, and confirm their Minecraft username.
 3. **The system automatically** adds them to the server whitelist and notifies the inviter.
-4. **Everyone benefits** from a trusted community with verified members.
+4. **Administrators** can manage everything from a web dashboard — generate invites, create permanent links, manage the whitelist, and visualize who invited whom.
 
 ## 🏗️ System Architecture
 
@@ -33,9 +33,9 @@ TokenPassWhitelist transforms the traditional Minecraft whitelist process into a
 
 ### Core Components
 
-- **[Velocity Plugin](VelocityPlugin/)** - Server-side Java plugin with HTTP API.
-- **[Web Frontend](SvelteFrontend/)** - Modern SvelteKit application for invite management.
-- **Security Layer** - CAPTCHA verification, rate limiting, and token validation.
+- **[Velocity Plugin](VelocityPlugin/)** - Server-side Java plugin with a built-in HTTP API server.
+- **[Web Frontend](SvelteFrontend/)** - Modern SvelteKit application for invite management, permanent links, and whitelist administration.
+- **Security Layer** - hCaptcha verification, IP-based rate limiting, and token validation on all endpoints.
 
 ## ✨ Key Features
 
@@ -44,29 +44,33 @@ TokenPassWhitelist transforms the traditional Minecraft whitelist process into a
 - **Clickable invite links** in chat with hover tooltips.
 - **Real-time notifications** when invites are redeemed.
 - **Invite tracking** with `/invite list` command.
+- **Bedrock support** — username validation accepts Geyser-prefixed names (e.g., `.player`, `*player`).
 - **Mobile-friendly** web interface.
 
 ### 👨‍💼 Comprehensive Admin Dashboard
-- **Interactive Invite Tree**: Visualize who invited who with an interactive, draggable network graph built with `vis-network`.
-- **Live Online Players Tracker**: See exactly who is online across the proxy network in real-time.
-- **Whitelist History**: See a full history of all players whitelisted via the plugin, their inviting party, and the date they joined.
-- **Permanent Links**: Generate permanent public invite URLs. Optionally secure them with a password to prevent abuse.
-- **Single-Use Invites**: Generate standard one-time use tokens directly from the dashboard.
+- **Interactive Invite Tree**: Visualize who invited whom with an interactive, draggable node graph built with `vis-network`. Nodes are color-coded: green for whitelisted players, red for removed players, pink for pending invites, and blue for inviters. Click any node to select it and remove its record from the tree.
+- **Active Invites & Permanent Links**: View all unclaimed one-time invites and all active permanent links in a single tab. Permanent links show creator name, password status, creation date, and a live count of how many players have joined through each link. Delete individual invites or permanent links directly from the table.
+- **Whitelist Management**: Full whitelist management with search, add, and remove functionality. Player names are parsed directly from the Velocity proxy's console output.
+- **Single-Use Invites**: Generate standard one-time use tokens directly from the dashboard with an optional inviter name tag (labeled as `[Admin]`).
+- **Permanent Links**: Generate reusable public invite URLs. Optionally secure them with a password. A confirmation dialog prevents accidental generation.
+- **Tab Persistence**: The dashboard remembers your last active tab across page refreshes using `localStorage`.
 
 ### 🔐 Security First
 - **One-time invite tokens** that expire after use.
-- **CAPTCHA protection** against automated abuse.
-- **Rate limiting** on all API endpoints.
+- **Two-step password flow** for permanent links — if a link is password-protected, users must enter the password before they can see or interact with the username/CAPTCHA form.
+- **hCaptcha protection** against automated abuse on all user-facing forms.
+- **IP-based rate limiting** on all API endpoints (100 requests per 10 seconds).
 - **CORS-compliant API** for secure cross-origin requests.
-- **Secure Dashboard Authentication**: Password-protected dashboard with token-based internal routing.
+- **Secure dashboard authentication**: Password-protected dashboard with an internal SvelteKit proxy that hides admin credentials from client-side network requests.
+- **Config preservation**: The plugin never overwrites an existing `config.yml` on restart.
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 - **Minecraft Server**: Velocity proxy (3.0+) with Java 17+.
-- **Web Hosting**: Node.js environment for the frontend.
+- **Web Hosting**: Node.js 18+ environment for the frontend.
 - **Domain**: For hosting the web interface.
-- **hCaptcha Account**: For CAPTCHA protection (free tier available).
+- **hCaptcha Account**: For CAPTCHA protection ([free tier available](https://www.hcaptcha.com/)).
 
 ### Installation Overview
 
@@ -78,30 +82,35 @@ TokenPassWhitelist transforms the traditional Minecraft whitelist process into a
    ```
 
 2. **Configure the Plugin (`config.yml`)**
-   The backend plugin does **NOT** use a `.env` file. It generates a `config.yml` in your `plugins/tokenpasswhitelist/` folder after the first run.
+   The plugin generates a `config.yml` in your `plugins/tokenpasswhitelist/` folder after the first run. It will **never overwrite** an existing config.
    ```yaml
-   # Edit plugins/tokenpasswhitelist/config.yml
    ip: 0.0.0.0
    port: 5000
-   api_secret: your-secure-secret       # MUST match frontend AUTH_TOKEN
-   admin_password: your-admin-password  # MUST match frontend ADMIN_PASSWORD
-   website_domain: your-domain.com
-   whitelist_command: whitelist add
+   api_secret: "your-secure-secret"          # MUST match frontend AUTH_TOKEN
+   admin_password: "your-admin-password"     # MUST match frontend ADMIN_PASSWORD
+   website_domain: "your-domain.com"
+   whitelist_command: "whitelist add "
+   whitelist_list_command: "whitelist list"
+   whitelist_remove_command: "whitelist remove "
    ```
 
-3. **Deploy the Frontend (`.env`)**
-   The frontend Node.js app **DOES** require a `.env` file in the `SvelteFrontend/` directory.
+   > ⚠️ **Important:** The `whitelist_command` and `whitelist_remove_command` values must have a **trailing space** — the username is appended directly to the string.
+
+3. **Deploy the Frontend**
+   The frontend requires a `.env` file in the `SvelteFrontend/` directory.
    ```bash
    cd SvelteFrontend/
    
    # Create a .env file (see SvelteFrontend/README.md for all variables)
-   # Ensure AUTH_TOKEN and ADMIN_PASSWORD match your plugin's config.yml exactly!
+   # Ensure AUTH_TOKEN and ADMIN_PASSWORD match your plugin's config.yml!
    
    npm install
    npm run build
+   
    # Use PM2 to run the build continuously:
    npm install -g pm2
    pm2 start build/index.js --name "tokenpass-frontend"
+   pm2 save && pm2 startup
    ```
 
 ## 🌍 Network & Proxy Setup Guide
@@ -116,10 +125,10 @@ Because Minecraft relies on a specific port (like `25565`) or SRV records, while
 
 *(Note: If using Cloudflare to hide your IP, see the Cloudflare section below, as you may need a separate subdomain for the Minecraft server since Cloudflare's free tier only proxies web traffic).*
 
-### 1. Backend IP Binding (`config.yml` -> `ip`)
+### 1. Backend IP Binding (`config.yml` → `ip`)
 The IP you set in the Velocity plugin determines how the API server listens for connections:
-- **`127.0.0.1` (Localhost)**: Use this if you are running a **Baremetal/VPS** setup and your Reverse Proxy (e.g. Nginx) is running on the *same machine*. This ensures the API is completely hidden from the public web and can only be accessed through the proxy.
-- **`0.0.0.0` (All Interfaces)**: Use this if you are running inside a **Docker Container, Pterodactyl Wings, or Proxmox LXC**. This allows the API to bind to the container's network bridge so your reverse proxy (which is likely in a different container or on the host) can reach it. Make sure you allocate the API port (default `5000`) in your panel!
+- **`127.0.0.1` (Localhost)**: Use this if your reverse proxy (e.g., Nginx) runs on the **same machine** as the Minecraft server. This hides the API from the public internet entirely.
+- **`0.0.0.0` (All Interfaces)**: Use this if you are running inside a **Docker container, Pterodactyl Wings, or Proxmox LXC**. This allows the API to bind to the container's network bridge so your reverse proxy (which is likely in a different container or on the host) can reach it. Make sure you allocate the API port (default `5000`) in your panel!
 
 ### 2. Reverse Proxy Configurations (Path-Based Routing)
 
@@ -179,8 +188,6 @@ server {
 
 If you use Cloudflare for DNS, you must be aware of its port limitations. **Cloudflare's free tier only proxies web traffic (ports 80/443). It will block Minecraft traffic (port 25565).**
 
-Because of this, if you want to use the **same domain** for both the website and the Minecraft server, you **cannot** use the orange cloud!
-
 **Option A: The Single Domain Method (No IP Hiding)**
 1. Set your `play.yourdomain.com` DNS record to **DNS Only (Gray Cloud)**.
 2. Players can connect via `play.yourdomain.com`, and the website will work on `https://play.yourdomain.com`.
@@ -189,29 +196,43 @@ Because of this, if you want to use the **same domain** for both the website and
 1. Create a record for `mc.yourdomain.com` and set it to **DNS Only (Gray Cloud)**. Give this to players to join the server.
 2. Create a record for `www.yourdomain.com` (or the root domain) and set it to **Proxied (Orange Cloud)**.
 3. **SSL/TLS Mode:** Set this to **Full (Strict)**. Ensure you have a valid SSL certificate on your reverse proxy (Let's Encrypt is perfect).
-4. **Caching Rules:** The `/api/*` endpoints *must not be cached*. Go to Cloudflare Rules -> Page Rules and create a rule:
+4. **Caching Rules:** The `/api/*` endpoints *must not be cached*. Go to Cloudflare Rules → Page Rules and create a rule:
    - **URL:** `your-domain.com/api/*`
-   - **Setting:** Cache Level -> Bypass
-   *(Note: The Velocity API sets `Cache-Control: no-cache` by default, but this rule guarantees Cloudflare won't interfere).*
+   - **Setting:** Cache Level → Bypass
 
 ## 📁 Project Structure
 
 ```
-VelocityPlugin/
-├── README.md                    # Plugin-specific documentation
-├── src/main/java/               # Java 17+ source code
-└── src/main/resources/          # Plugin configurations
-SvelteFrontend/
-├── README.md                    # Frontend-specific documentation
-├── src/                         # SvelteKit source code
-└── package.json                 # Node.js dependencies
+TokenPassWhitelist/
+├── README.md                        # This file
+├── VelocityPlugin/
+│   ├── README.md                    # Plugin-specific documentation
+│   ├── pom.xml                      # Maven build file
+│   └── src/main/
+│       ├── java/.../
+│       │   ├── TokenPassWhitelist.java    # Plugin entry point
+│       │   ├── InternalHttpServer.java    # Built-in HTTP API (18 endpoints)
+│       │   ├── InviteStorage.java         # Invite/permanent link persistence
+│       │   ├── InviteCommand.java         # /invite command handler
+│       │   └── ConfigFile.java            # Safe YAML config loader
+│       └── resources/
+│           └── config.yml                 # Default configuration template
+└── SvelteFrontend/
+    ├── README.md                    # Frontend-specific documentation
+    ├── package.json                 # Node.js dependencies
+    └── src/routes/
+        ├── +page.svelte             # Landing page
+        ├── admin/                   # Admin login + dashboard
+        ├── api/public-invite/       # Permanent link API proxy
+        ├── invite/[token]/          # Single-use invite redemption
+        ├── public-invite/[id]/      # Permanent link redemption page
+        └── success/                 # Post-whitelist confirmation
 ```
 
 ## 🤝 Contributing
 
-This project is built for the community, and we welcome contributions from all skill levels! Whether you're fixing a bug, adding a new feature, or simply correcting a typo in the documentation, your help is appreciated. 
+Contributions are welcome from all skill levels! Whether you're fixing a bug, adding a new feature, or improving documentation:
 
-Here's how you can help:
 1. **Fork the repository** and create a feature branch.
 2. **Follow the coding standards** established in each component.
 3. **Submit a pull request** with a clear description of your changes.
@@ -222,12 +243,11 @@ If you have feature ideas or encounter bugs, please open an issue!
 
 Built with ❤️ for the Minecraft community by **guslof**.
 
-A huge thank you to the server admins, community members, and players who provided feedback, tested early versions, and requested features like the Admin Dashboard and Invite Trees. This project exists to make running a safe, fun, and private Minecraft server as easy as possible for everyone.
-
 *We stand on the shoulders of giants:*
-- **Velocity Powered** for the blazing fast proxy API.
-- **SvelteKit** for making frontend development a joy.
-- **vis-network** for the beautiful invite tree visualization.
+- **[Velocity](https://velocitypowered.com/)** for the blazing fast proxy API.
+- **[SvelteKit](https://kit.svelte.dev/)** for making frontend development a joy.
+- **[vis-network](https://visjs.github.io/vis-network/)** for the beautiful invite tree visualization.
+- **[hCaptcha](https://www.hcaptcha.com/)** for bot protection.
 
 ## 📄 License
-This project is open-source and licensed under the MIT License - see the [LICENSE](LICENSE) file for details. You are free to use, modify, and distribute this software as you see fit for your communities.
+This project is open-source and licensed under the MIT License — see the [LICENSE](LICENSE) file for details.

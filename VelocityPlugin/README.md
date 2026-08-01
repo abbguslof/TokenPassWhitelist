@@ -1,154 +1,98 @@
-# TokenPassWhitelist (Velocity Plugin)
+# TokenPassWhitelist — Velocity Plugin
 
-**TokenPassWhitelist** is a Velocity proxy plugin designed to provide a secure, invite-based whitelisting system for Minecraft servers. Players can invite others using `/invite`, generating unique, one-time-use invite links that can be claimed via a simple frontend website. The plugin supports external HTTP interaction, web-based invites, admin tools, persistence, and rate-limiting.
+The server-side component of the TokenPassWhitelist system. This Velocity proxy plugin provides a built-in HTTP API server, in-game invite commands, and full whitelist management — all configurable via a single `config.yml`.
 
-> ✅ Part of the larger **TokenPassWhitelist** system, which includes a frontend built in Svelte for link management and claim flow.
+> ✅ Part of the larger **TokenPassWhitelist** system, which includes a [SvelteKit frontend](../SvelteFrontend/) for invite redemption and administration.
 
 ---
 
 ## 🧩 Features
 
-- `/invite` command for players to generate whitelist links
+- `/invite` command for players to generate one-time whitelist links
 - `/invite list` command to view your generated invites and their status
-- Admin web interface to create invites externally
-- One-time token usage for secure access control
-- Internal HTTP API server with rate limiting
-- Whitelisting via Velocity-compatible command
-- Cross-container/frontend compatibility
-- Invite persistence using YAML file storage
-- Feedback to inviter when their invite is redeemed
-- CORS-ready API (suitable for frontend deployments)
-- Clickable invite links with hover tooltips in chat
+- Clickable invite links in chat with hover tooltips
+- Real-time in-game notification when invites are redeemed
+- Built-in HTTP API with 18 endpoints for frontend integration
+- Permanent invite links with optional password protection
+- Full whitelist management via configurable console commands
+- IP-based rate limiting (100 requests / 10 seconds)
+- Invite and permanent link persistence via YAML files
+- CORS-ready API headers on all endpoints
+- Safe config loading — never overwrites an existing `config.yml`
 
 ---
 
 ## 📁 Folder Structure
 
-This folder contains the Velocity plugin only. For the full project, see the root of this repository.
-
-```bash
+```
 VelocityPlugin/
-├── src/
-│   └── main/
-│       ├── java/dev/tokenpass/tokenpasswhitelist/
-│       │   ├── TokenPassWhitelist.java         # Main plugin entry
-│       │   ├── InternalHttpServer.java         # Built-in API server
-│       │   ├── InviteStorage.java              # Invite logic and persistence
-│       │   ├── InviteCommand.java              # /invite command handler
-│       │   └── ConfigFile.java                 # YAML config loader
-│       └── resources/
-│           └── config.yml                      # Default configuration
-└── pom.xml                                     # Maven build file
+├── pom.xml                                     # Maven build file
+└── src/main/
+    ├── java/dev/tokenpass/tokenpasswhitelist/
+    │   ├── TokenPassWhitelist.java         # Plugin entry point & lifecycle
+    │   ├── InternalHttpServer.java         # Built-in HTTP API server
+    │   ├── InviteStorage.java              # Invite & permanent link persistence
+    │   ├── InviteCommand.java              # /invite command handler
+    │   └── ConfigFile.java                 # Safe YAML config loader
+    └── resources/
+        └── config.yml                      # Default configuration template
 ```
 
 ---
 
-## ⚙️ Building the Plugin
+## ⚙️ Building
 
-This project uses **Maven** to build the plugin. Make sure you have Maven installed.
+Requires **Maven** and **Java 17+**.
 
 ```bash
 mvn clean package
 ```
 
-After building, the compiled plugin JAR will be available at:
-
-```
-target/TokenPassWhitelist-VERSION.jar
-```
-
-Place this JAR inside your Velocity server's `plugins/` folder.
+The compiled plugin JAR will be at `target/TokenPassWhitelist-1.0-SNAPSHOT.jar`. Place this inside your Velocity server's `plugins/` folder.
 
 ---
 
-## 🧪 Running the Plugin
+## 🧪 First Run
 
-1. Ensure Velocity is running.
-2. After the plugin is placed in `plugins/`, start the server once to generate the configs.
-3. Edit the `config.yml` file with your desired settings (see below).
-4. Restart the server.
+1. Place the JAR in `plugins/` and start the Velocity server.
+2. The plugin will generate `plugins/tokenpasswhitelist/config.yml` with default values.
+3. Stop the server, edit the config (see below), then restart.
+
+> ⚠️ The plugin will **never overwrite** an existing `config.yml`. You can safely restart without losing your configuration.
 
 ---
 
-## 🔧 Configuration (`config.yml` & `permanent_links.yml`)
+## 🔧 Configuration
 
 ### `config.yml`
 ```yaml
-ip: 0.0.0.0                  # Bind IP for internal HTTP server
-port: 5000                   # Port for internal HTTP server
-api_secret: REPLACE_ME       # Secret for API requests from frontend
-admin_password: change_me_now # Admin panel password
-website_domain: example.com  # Used to construct invite links
-whitelist_command: whitelist add   # Command used to whitelist players
+# HTTP server bind address
+ip: 0.0.0.0                          # Use 127.0.0.1 if reverse proxy is on the same machine
+port: 5000                           # Port for the built-in HTTP API server
+
+# Secret token for API requests (set securely)
+api_secret: "REPLACE_ME"             # MUST match the frontend's AUTH_TOKEN
+
+# Domain used in invite links generated by /invite
+website_domain: "invite.example.com"
+
+# Console command used to whitelist a player (username is appended)
+whitelist_command: "whitelist add "
+
+# Console command to list the current whitelist
+whitelist_list_command: "whitelist list"
+
+# Console command to remove a player from the whitelist (username is appended)
+whitelist_remove_command: "whitelist remove "
+
+# Password required for the admin dashboard
+admin_password: "change_me_now"       # MUST match the frontend's ADMIN_PASSWORD
 ```
 
-**Important:** Make sure your port is accessible from wherever the frontend is hosted.
+> ⚠️ **Trailing spaces matter!** The `whitelist_command` and `whitelist_remove_command` values must end with a space — the username is appended directly to the string (e.g., `whitelist add PlayerName`).
 
-### `permanent_links.yml`
-This file is automatically managed by the plugin and stores permanent invite URLs. You generally do not need to edit this file manually.
-
----
-
-## 📌 Commands
-
-### `/invite`
-Generates a new invite link and prints it to the user.
-- **Usage:** `/invite`
-- **Permission:** Must be a player (console usage not supported for invite generation)
-- **Output:** Clickable invite link with hover tooltip
-
-### `/invite list`
-Shows all invites you've created and their status.
-- **Usage:** `/invite list`
-- **Permission:** Must be a player
-- **Output:** List of your invites, showing which have been used and by whom
-
----
-
-## 🌐 Internal HTTP API
-
-The plugin exposes a small HTTP server to interact with the invite system from the frontend.
-
-### Endpoints
-
-| Method | Endpoint | Description | Headers |
-|--------|----------|-------------|---------|
-| POST | `/api/whitelist` | Redeems an invite, whitelists player | `X-Auth-Token` |
-| POST | `/api/check-token` | Checks if token is valid | `X-Auth-Token` |
-| POST | `/api/invite-admin` | Admin-only invite creation | `X-Admin-Password` |
-| GET | `/api/invites` | Get all invites (for Dashboard) | `X-Admin-Password` |
-| GET | `/api/players` | Get online players (for Dashboard) | `X-Admin-Password` |
-| POST | `/api/permanent-link` | Create a permanent link | `X-Admin-Password` |
-| POST | `/api/permanent-link-info` | Check if a permanent link has a password | `X-Auth-Token` |
-| POST | `/api/permanent-whitelist` | Redeem a permanent link | `X-Auth-Token` |
-| GET | `/ping` | Health check | None |
-
-All endpoints support CORS and preflight OPTIONS requests.
-
----
-
-## 🔐 Rate Limiting
-
-Each API endpoint is protected by IP-based rate limiting:
-
-- **Limit:** Max 5 requests per 10 seconds per IP
-- **Purpose:** Prevents abuse and automated spam
-- **Response:** 429 Too Many Requests when exceeded
-
----
-
-## 📦 Persistence
-
-All invites (active and claimed) are saved to `invites.yml` in your plugin data folder.
-
-**Features:**
-- Survives server restarts
-- Tracks invite creation timestamps
-- Stores inviter UUID and name
-- Records when invites are claimed and by whom
-- Supports both player-generated and web-generated invites
-
-**Example `invites.yml` structure:**
+### `invites.yml` (auto-managed)
+Stores all invite records (active and claimed). Example:
 ```yaml
 "uuid-token-here":
   inviterUUID: "player-uuid-here"
@@ -157,44 +101,90 @@ All invites (active and claimed) are saved to `invites.yml` in your plugin data 
   createdAt: 1640995200000
 ```
 
+### `permanent_links.yml` (auto-managed)
+Stores permanent invite links. Example:
+```yaml
+"link-id-here":
+  creatorName: "ServerOwner"
+  passwordHash: null
+  createdAt: 1640995200000
+```
+
 ---
 
-## 🌍 Deployment Tips
+## 📌 Commands
 
-1. **Reverse Proxy:** Use Nginx or Nginx Proxy Manager to proxy `/api/*` from your public domain to the plugin server port
-2. **Security:** Protect `/api/invite-admin` with a strong password
-3. **Environment:** Set your `.env` in the frontend with `VITE_API_URL` pointing to the proxy (e.g., `https://yourdomain.com/api`)
-4. **Firewall:** Ensure the configured port is accessible from your frontend deployment
+### `/invite`
+Generates a new one-time invite link and displays it to the player as a clickable chat message with a hover tooltip.
+- **Usage:** `/invite`
+- **Permission:** Player only (console not supported)
 
-**Example Nginx configuration:**
-```nginx
-location /api/ {
-    proxy_pass http://minecraft-server:5000/api/;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-}
-```
+### `/invite list`
+Shows all invites you've created, including their status (pending or claimed, and by whom).
+- **Usage:** `/invite list`
+- **Permission:** Player only
+
+---
+
+## 🌐 HTTP API Reference
+
+The plugin runs a built-in HTTP server on the configured `ip:port`. All endpoints support CORS preflight (`OPTIONS`) requests.
+
+### Authentication
+- **`X-Auth-Token`** header: Used by the frontend for public-facing endpoints. Must match `api_secret` in `config.yml`.
+- **`X-Admin-Password`** header: Used for admin dashboard endpoints. Must match `admin_password` in `config.yml`.
+
+### Endpoints
+
+| Method | Endpoint                  | Auth Header        | Description                                         |
+|--------|---------------------------|--------------------|-----------------------------------------------------|
+| POST   | `/api/whitelist`          | `X-Auth-Token`     | Redeem a one-time invite token and whitelist a user  |
+| POST   | `/api/check-token`        | `X-Auth-Token`     | Check if a one-time token is valid and unclaimed     |
+| POST   | `/api/permanent-link-info`| `X-Auth-Token`     | Get info about a permanent link (has password, etc.) |
+| POST   | `/api/permanent-whitelist`| `X-Auth-Token`     | Redeem a permanent link and whitelist a user         |
+| POST   | `/api/invite-admin`       | `X-Admin-Password` | Create a one-time invite from the admin panel        |
+| POST   | `/api/permanent-link`     | `X-Admin-Password` | Create a new permanent invite link                   |
+| POST   | `/api/delete-invite`      | `X-Admin-Password` | Delete a specific invite record                      |
+| POST   | `/api/delete-permanent-link`| `X-Admin-Password`| Delete a specific permanent link                     |
+| POST   | `/api/add-whitelist`      | `X-Admin-Password` | Add a player to the whitelist via console command     |
+| POST   | `/api/remove-whitelist`   | `X-Admin-Password` | Remove a player from the whitelist via console command|
+| GET    | `/api/invites`            | `X-Admin-Password` | Get all invite records (for the dashboard tree)      |
+| GET    | `/api/players`            | `X-Admin-Password` | Get all online players across the proxy              |
+| GET    | `/api/permanent-links`    | `X-Admin-Password` | Get all permanent links with usage counts            |
+| GET    | `/api/whitelist-list`     | `X-Admin-Password` | Execute whitelist list command and return output      |
+| GET    | `/api/ping`               | None               | Health check endpoint                                |
+
+### Rate Limiting
+All endpoints are protected by IP-based rate limiting:
+- **Limit:** 100 requests per 10 seconds per IP
+- **Response:** `429 Too Many Requests` when exceeded
 
 ---
 
 ## 🔧 Troubleshooting
 
 **Plugin won't start:**
-- Check Java version (requires 17+)
-- Verify Velocity compatibility
-- Check server logs for specific errors
+- Check Java version (requires 17+).
+- Verify Velocity compatibility (3.0+).
+- Check server logs for specific errors.
 
-**HTTP server not accessible (Connection Refused vs Connection Timeout):**
-- **Connection Refused**: Usually means the plugin isn't bound to the correct IP. If running in Docker (like Pterodactyl), change `ip:` in config to `0.0.0.0`.
-- **Connection Timeout**: Usually a firewall issue. Ensure your host machine's firewall allows traffic on port `5000`.
+**`NullPointerException` on startup:**
+- This can happen if `invites.yml` or `permanent_links.yml` contains malformed data. Delete the file and restart — it will be recreated.
+
+**HTTP server not accessible:**
+- **Connection Refused**: The plugin isn't bound to the correct IP. If running in Docker or Pterodactyl, change `ip` to `0.0.0.0`.
+- **Connection Timeout**: A firewall is blocking the port. Ensure port `5000` (or your configured port) is open.
 
 **Invites not persisting:**
-- Check file permissions in plugin data directory.
-- Verify `invites.yml` is being created.
+- Check file permissions in the plugin data directory.
 - Look for I/O errors in server logs.
+
+**Whitelist commands not working:**
+- Verify `whitelist_command`, `whitelist_list_command`, and `whitelist_remove_command` in `config.yml` match your server's actual whitelist commands.
+- Ensure trailing spaces are present where needed.
 
 ---
 
 ## 📄 License
 
-This project is licensed under the MIT License. See LICENSE for details.
+This project is licensed under the MIT License. See [LICENSE](../LICENSE) for details.
