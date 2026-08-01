@@ -78,10 +78,12 @@
 			loading = true;
 			const invData = await apiCall('invites');
 			const plData = await apiCall('players');
-			const wlData = await apiCall('whitelist-list');
+const wlData = await apiCall('whitelist-list');
+			const permData = await apiCall('permanent-links');
 			invites = invData.invites;
 			players = plData.players;
 			whitelistOutput = wlData.output;
+			permanentLinks = permData.permanentLinks;
 			
 			if (activeTab === 'tree') await renderTree();
 		} catch (e: any) {
@@ -177,7 +179,8 @@
 		}
 	}
 
-	async function createPermanentLink() {
+async function createPermanentLink() {
+		if (!confirm('Are you sure you want to generate a permanent link? Anyone with this link (and password, if set) can bypass the whitelist instantly.')) return;
 		try {
 			const data = await apiCall('permanent-link', { 
 				creatorName: permCreator || 'Admin', 
@@ -219,7 +222,29 @@
 			{/if}
 
 			
-			{#if activeTab === 'active'}
+{#if activeTab === 'active'}
+				<div class="card">
+					<h3>Permanent Links</h3>
+					<table>
+						<thead><tr><th>ID</th><th>Creator</th><th>Password?</th><th>Uses</th><th>Date</th><th>Link</th></tr></thead>
+						<tbody>
+							{#each permanentLinks as p}
+								<tr>
+									<td>{p.id}</td>
+									<td>{p.creatorName}</td>
+									<td>{p.hasPassword ? 'Yes' : 'No'}</td>
+									<td>{p.uses}</td>
+									<td>{new Date(p.createdAt).toLocaleDateString()}</td>
+									<td><a href="{window.location.origin}/public-invite/{p.id}" target="_blank">Copy Link</a></td>
+								</tr>
+							{/each}
+							{#if permanentLinks.length === 0}
+								<tr><td colspan="6">No permanent links created.</td></tr>
+							{/if}
+						</tbody>
+					</table>
+				</div>
+
 				<div class="card">
 					<h3>Active Invites (Unclaimed)</h3>
 					<table>

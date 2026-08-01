@@ -14,6 +14,7 @@
 	let submitting = false;
 	let valid = false;
 	let hasPassword = false;
+	let step = 1;
 	let creatorName = '';
 	let id = $page.params.id;
 	let captchaToken = '';
@@ -33,6 +34,7 @@
 				const data = await res.json();
 				valid = true;
 				hasPassword = data.hasPassword;
+				step = data.hasPassword ? 1 : 2;
 				creatorName = data.creatorName;
 				setTimeout(initializeCaptcha, 100);
 			} else {
@@ -48,7 +50,13 @@
 	 * Initializes the hCaptcha widget. 
 	 * It polls for the global hcaptcha object since the script is loaded asynchronously.
 	 */
-	function initializeCaptcha() {
+	function nextStep() {
+		if (password) step = 2;
+	}
+
+	/**
+	 * Initializes the hCaptcha widget. 
+
 		if (!captchaContainer) return;
 
 		const check = setInterval(() => {
@@ -122,24 +130,28 @@
 		<h1>Join {import.meta.env.VITE_BRAND_NAME}</h1>
 		<p class="subtitle">Invited by <strong>{creatorName}</strong></p>
 		
-		<form on:submit|preventDefault={submit}>
-			<input type="text" placeholder="Minecraft Username" bind:value={username} required pattern="[a-zA-Z0-9_]{3,16}" title="Valid Minecraft username" disabled={submitting} />
-			
-			{#if hasPassword}
-				<input type="password" placeholder="Invite Password" bind:value={password} required disabled={submitting} />
-			{/if}
-
-			<div class="captcha">
-				<div class="h-captcha" bind:this={captchaContainer}></div>
-				{#if !captchaLoaded}
-					<p class="loading">Loading CAPTCHA...</p>
-				{/if}
-			</div>
-			
-			<button type="submit" disabled={submitting || !username || !captchaToken || (hasPassword && !password)}>
-				{submitting ? 'Processing...' : 'Join Server'}
-			</button>
-		</form>
+		{#if step === 1}
+			<form on:submit|preventDefault={nextStep}>
+				<p>This invite is password-protected.</p>
+				<input type="password" placeholder="Invite Password" bind:value={password} required />
+				<button type="submit">Verify Password</button>
+			</form>
+		{:else}
+			<form on:submit|preventDefault={submit}>
+				<input type="text" placeholder="Minecraft Username" bind:value={username} required pattern="[a-zA-Z0-9_]{3,16}" title="Valid Minecraft username" disabled={submitting} />
+				
+				<div class="captcha">
+					<div class="h-captcha" bind:this={captchaContainer}></div>
+					{#if !captchaLoaded}
+						<p class="loading">Loading CAPTCHA...</p>
+					{/if}
+				</div>
+				
+				<button type="submit" disabled={submitting || !username || !captchaToken}>
+					{submitting ? 'Processing...' : 'Join Server'}
+				</button>
+			</form>
+		{/if}
 	</div>
 {:else}
 	<div class="container"><p>Validating link...</p></div>
