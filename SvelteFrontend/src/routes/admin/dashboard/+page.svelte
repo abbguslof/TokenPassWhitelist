@@ -12,6 +12,7 @@
 	let activeTab = 'tree';
 	
 	let invites: any[] = [];
+	let permanentLinks: any[] = [];
 	let whitelistOutput: string[] = [];
 	let whitelistSearchQuery = '';
 	
@@ -43,6 +44,9 @@
 	let network: any;
 
 	onMount(async () => {
+		const savedTab = localStorage.getItem('activeTab');
+		if (savedTab) activeTab = savedTab;
+		
 		password = localStorage.getItem('adminPassword') || '';
 		if (!password) {
 			goto('/admin');
@@ -165,6 +169,7 @@ const wlData = await apiCall('whitelist-list');
 
 	function switchTab(tab: string) {
 		activeTab = tab;
+		localStorage.setItem('activeTab', tab);
 		if (tab === 'tree') renderTree();
 	}
 
