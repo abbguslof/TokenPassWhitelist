@@ -15,15 +15,18 @@
 	let permanentLinks: any[] = [];
 	let whitelistOutput: string[] = [];
 	let whitelistSearchQuery = '';
+	let selectedNode: any = null;
 	
-	$: parsedWhitelistUsers = whitelistOutput
+	$: allWhitelistUsers = whitelistOutput
 		.join(' ')
 		.replace(/,/g, ' ')
 		.split(/\s+/)
 		.map(w => w.trim())
 		.filter(w => /^[a-zA-Z0-9_.*-]{3,24}$/.test(w))
 		.filter(w => !['there', 'are', 'out', 'of', 'seen', 'whitelisted', 'whitelist', 'players', 'size', 'and', 'the'].includes(w.toLowerCase()))
-		.filter((v, i, a) => a.indexOf(v) === i)
+		.filter((v, i, a) => a.indexOf(v) === i);
+
+	$: parsedWhitelistUsers = allWhitelistUsers
 		.filter(w => w.toLowerCase().includes(whitelistSearchQuery.toLowerCase()));
 
 	let newWhitelistUser = '';
@@ -106,7 +109,8 @@ const wlData = await apiCall('whitelist-list');
 		if (!networkContainer) return;
 
 		const nodes = new Map();
-		const edges = [];
+		const edges: any[] = [];
+		const whitelistSet = new Set(allWhitelistUsers.map(u => u.toLowerCase()));
 		
 		nodes.set('ROOT', { id: 'ROOT', label: 'Server Console', shape: 'star', color: '#ffd700' });
 
@@ -117,10 +121,28 @@ const wlData = await apiCall('whitelist-list');
 			}
 			
 			if (inv.targetName) {
-				nodes.set(inv.targetName, { id: inv.targetName, label: inv.targetName, shape: 'box', color: '#90ee90' });
+				const isWhitelisted = whitelistSet.has(inv.targetName.toLowerCase());
+				const nodeColor = isWhitelisted ? '#90ee90' : '#ff6b6b';
+				const label = isWhitelisted ? inv.targetName : `❌ ${inv.targetName}`;
+				nodes.set(inv.targetName, {
+					id: inv.targetName,
+					label,
+					shape: 'box',
+					color: nodeColor,
+					font: isWhitelisted ? {} : { color: '#fff' },
+					_token: inv.token,
+					_type: 'claimed'
+				});
 				edges.push({ from: creatorId, to: inv.targetName, arrows: 'to' });
 			} else {
-				nodes.set(inv.token, { id: inv.token, label: 'Pending Invite', shape: 'ellipse', color: '#ffcccb' });
+				nodes.set(inv.token, {
+					id: inv.token,
+					label: 'Pending Invite',
+					shape: 'ellipse',
+					color: '#ffcccb',
+					_token: inv.token,
+					_type: 'pending'
+				});
 				edges.push({ from: creatorId, to: inv.token, arrows: 'to', dashes: true });
 			}
 		});
@@ -132,11 +154,29 @@ const wlData = await apiCall('whitelist-list');
 
 		const options = {
 			layout: { hierarchical: { direction: 'UD', sortMethod: 'directed' } },
-			physics: false
+			physics: false,
+			interaction: { selectConnectedEdges: false }
 		};
 
 		if (network) network.destroy();
 		network = new Network(networkContainer, data, options);
+
+		// Store nodes map for selection lookup
+		const nodesMap = nodes;
+
+		network.on('selectNode', (params: any) => {
+			const nodeId = params.nodes[0];
+			const node = nodesMap.get(nodeId);
+			if (node && node._token) {
+				selectedNode = { id: nodeId, token: node._token, type: node._type };
+			} else {
+				selectedNode = null;
+			}
+		});
+
+		network.on('deselectNode', () => {
+			selectedNode = null;
+		});
 	}
 
 	
@@ -231,6 +271,26 @@ async function createPermanentLink() {
 			{#if activeTab === 'tree'}
 				<div class="card">
 					<h3>Invite Tree Visualization</h3>
+					<p class="tree-legend">
+						<span class="legend-item"><span class="legend-dot" style="background:#90ee90"></span> Whitelisted</span>
+						<span class="legend-item"><span class="legend-dot" style="background:#ff6b6b"></span> Removed</span>
+						<span class="legend-item"><span class="legend-dot" style="background:#ffcccb; border-radius:50%"></span> Pending</span>
+						<span class="legend-item"><span class="legend-dot" style="background:#add8e6"></span> Inviter</span>
+					</p>
+					{#if selectedNode}
+						<div class="tree-actions">
+							<span>Selected: <strong>{selectedNode.id}</strong> ({selectedNode.type})</span>
+							<button class="delete-btn" on:click={async () => {
+								if (confirm(`Delete invite record for "${selectedNode.id}"? This removes the entry from the tree.`)) {
+									try {
+										await apiCall('delete-invite', { token: selectedNode.token });
+										selectedNode = null;
+										await fetchData();
+									} catch (e) { alert(e.message); }
+								}
+							}}>🗑️ Remove from Tree</button>
+						</div>
+					{/if}
 					<div bind:this={networkContainer} class="network-canvas"></div>
 				</div>
 			{/if}
@@ -489,5 +549,11 @@ async function createPermanentLink() {
 	.inline-form input { flex: 1; max-width: 300px; }
 	.console-output { background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 4px; font-family: monospace; max-height: 200px; overflow-y: auto; margin-bottom: 1.5rem; }
 	.help-text { font-size: 0.9rem; color: #666; margin-top: -0.5rem; margin-bottom: 1rem; }
+
+	.tree-legend { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 0.5rem; font-size: 0.9rem; color: #555; }
+	.legend-item { display: flex; align-items: center; gap: 0.4rem; }
+	.legend-dot { display: inline-block; width: 14px; height: 14px; border-radius: 3px; border: 1px solid #ccc; }
+	.tree-actions { display: flex; align-items: center; gap: 1rem; padding: 0.75rem 1rem; background: #f0f4f8; border-radius: 6px; margin-bottom: 0.5rem; flex-wrap: wrap; }
+	.tree-actions span { font-size: 0.95rem; }
 
 </style>
