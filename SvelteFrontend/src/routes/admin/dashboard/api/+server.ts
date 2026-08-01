@@ -26,6 +26,6 @@ export const POST: RequestHandler = async ({ request }) => {
 		return json(data, { status: res.status });
 	} catch (e: any) {
 		console.error(`[Admin Proxy] Failed to contact backend server at ${url}:`, e);
-		return json({ message: `Failed to contact backend server. Check backend logs or URL config. (${e.message})` }, { status: 500 });
+		return json({ message: 'Failed to contact backend server. Please check server logs.' }, { status: 500 });
 	}
 };

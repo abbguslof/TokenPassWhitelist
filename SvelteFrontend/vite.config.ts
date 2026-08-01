@@ -16,7 +16,6 @@ export default defineConfig({
 		// Only expose specific VITE_ prefixed variables to client
 		'import.meta.env.VITE_BRAND_NAME': JSON.stringify(process.env.VITE_BRAND_NAME),
 		'import.meta.env.VITE_SERVER_IP': JSON.stringify(process.env.VITE_SERVER_IP),
-		'import.meta.env.VITE_API_URL': JSON.stringify(process.env.VITE_API_URL),
 		'import.meta.env.VITE_HCAPTCHA_SITE_KEY': JSON.stringify(process.env.VITE_HCAPTCHA_SITE_KEY)
 	}
 });

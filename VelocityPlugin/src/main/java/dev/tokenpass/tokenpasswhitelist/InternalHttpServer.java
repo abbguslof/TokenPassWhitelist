@@ -84,7 +84,6 @@ public class InternalHttpServer {
             }
 
             String authHeader = exchange.getRequestHeaders().getFirst("X-Auth-Token");
-            plugin.getLogger().info("[TokenPassWhitelist] Auth header: " + authHeader);
 
             if (!config.apiSecret.equals(authHeader)) {
                 sendJson(exchange, 401, "Unauthorized");
