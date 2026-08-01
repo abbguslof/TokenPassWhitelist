@@ -24,7 +24,7 @@ public class InternalHttpServer {
     private static final Gson gson = new Gson();
 
     private static final Map<String, RequestBucket> rateLimits = new ConcurrentHashMap<>();
-    private static final int RATE_LIMIT_MAX = 5;
+    private static final int RATE_LIMIT_MAX = 100;
     private static final int RATE_LIMIT_SECONDS = 10;
 
     public static void start(TokenPassWhitelist pluginInstance, ConfigFile loadedConfig) {

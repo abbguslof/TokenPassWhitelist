@@ -13,6 +13,18 @@
 	
 	let invites: any[] = [];
 	let whitelistOutput: string[] = [];
+	let whitelistSearchQuery = '';
+	
+	$: parsedWhitelistUsers = whitelistOutput
+		.join(' ')
+		.replace(/,/g, ' ')
+		.split(/\s+/)
+		.map(w => w.trim())
+		.filter(w => /^[a-zA-Z0-9_]{3,16}$/.test(w))
+		.filter(w => !['There', 'are', 'out', 'of', 'seen', 'whitelisted', 'players', 'and', 'the'].includes(w))
+		.filter((v, i, a) => a.indexOf(v) === i)
+		.filter(w => w.toLowerCase().includes(whitelistSearchQuery.toLowerCase()));
+
 	let newWhitelistUser = '';
 	let players: any[] = [];
 	
@@ -257,21 +269,34 @@
 						<input type="text" placeholder="Add username..." bind:value={newWhitelistUser} required />
 						<button type="submit">Add to Whitelist</button>
 					</form>
-					<div class="console-output">
-						{#each whitelistOutput as line}
-							<div>{line}</div>
-						{/each}
-						{#if whitelistOutput.length === 0}
-							<div>No whitelist output received.</div>
-						{/if}
+					<h3>Manage Whitelisted Players</h3>
+					<div class="inline-form">
+						<input type="text" placeholder="Search whitelisted players..." bind:value={whitelistSearchQuery} />
 					</div>
 					
-					<h3>Manage Existing Players</h3>
-					<p class="help-text">Type a username above to manually remove if it's not easily clickable below.</p>
-					<form class="inline-form" on:submit|preventDefault={() => removeWhitelist(newWhitelistUser)}>
-						<input type="text" placeholder="Remove username..." bind:value={newWhitelistUser} required />
-						<button type="submit" class="delete-btn">Remove Player</button>
-					</form>
+					<table>
+						<thead><tr><th>Username</th><th>Action</th></tr></thead>
+						<tbody>
+							{#each parsedWhitelistUsers as u}
+								<tr>
+									<td>{u}</td>
+									<td><button class="delete-btn" on:click={() => removeWhitelist(u)}>Remove</button></td>
+								</tr>
+							{/each}
+							{#if parsedWhitelistUsers.length === 0}
+								<tr><td colspan="2">No players found matching your search.</td></tr>
+							{/if}
+						</tbody>
+					</table>
+					
+					<details style="margin-top: 1rem; color: #666;">
+						<summary>View raw console output</summary>
+						<div class="console-output" style="margin-top: 0.5rem;">
+							{#each whitelistOutput as line}
+								<div>{line}</div>
+							{/each}
+						</div>
+					</details>
 				</div>
 
 			{/if}
