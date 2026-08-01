@@ -20,7 +20,7 @@
 
 	onMount(async () => {
 		try {
-			const res = await fetch(`/invite/${token}`);
+			const res = await fetch(`/invite/${token}`, { headers: { 'Accept': 'application/json' } });
 			if (res.ok) {
 				valid = true;
 				setTimeout(initializeCaptcha, 100);

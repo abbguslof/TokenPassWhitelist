@@ -140,6 +140,15 @@ const wlData = await apiCall('whitelist-list');
 	}
 
 	
+	async function deletePermanentLink(id: string) {
+		if (confirm('Are you sure you want to delete this permanent link?')) {
+			try {
+				await apiCall('delete-permanent-link', { id });
+				await fetchData();
+			} catch (e: any) { alert(e.message); }
+		}
+	}
+
 	async function deleteInvite(token: string) {
 		if (confirm('Are you sure you want to delete this invite?')) {
 			try {
@@ -240,7 +249,10 @@ async function createPermanentLink() {
 									<td>{p.hasPassword ? 'Yes' : 'No'}</td>
 									<td>{p.uses}</td>
 									<td>{new Date(p.createdAt).toLocaleDateString()}</td>
-									<td><a href="{window.location.origin}/public-invite/{p.id}" target="_blank">Copy Link</a></td>
+									<td>
+										<a href="{window.location.origin}/public-invite/{p.id}" target="_blank">Copy Link</a>
+										<button class="delete-btn" style="margin-left: 0.5rem; padding: 0.25rem 0.5rem; font-size: 0.8rem;" on:click={() => deletePermanentLink(p.id)}>Delete</button>
+									</td>
 								</tr>
 							{/each}
 							{#if permanentLinks.length === 0}

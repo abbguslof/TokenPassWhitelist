@@ -24,7 +24,8 @@ export const GET: RequestHandler = async ({ params }) => {
 		} else {
 			return json({ message: 'Invalid or expired link' }, { status: 404 });
 		}
-	} catch {
+	} catch (e) {
+		console.error(e);
 		return json({ message: 'Failed to validate link' }, { status: 500 });
 	}
 };

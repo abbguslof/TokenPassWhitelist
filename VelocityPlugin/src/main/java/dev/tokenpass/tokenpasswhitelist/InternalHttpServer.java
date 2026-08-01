@@ -48,6 +48,7 @@ public class InternalHttpServer {
             server.createContext("/api/whitelist-list", new GetWhitelistHandler());
             server.createContext("/api/add-whitelist", new AddWhitelistHandler());
             server.createContext("/api/remove-whitelist", new RemoveWhitelistHandler());
+            server.createContext("/api/delete-permanent-link", new DeletePermanentLinkHandler());
             server.createContext("/api/delete-invite", new DeleteInviteHandler());
             server.setExecutor(null); // default executor
 
@@ -561,8 +562,33 @@ public class InternalHttpServer {
         }
     }
 
+
+    /**
+     * Handles POST /api/delete-permanent-link
+     * Deletes a permanent link.
+     * Requires the X-Admin-Password header.
+     */
+    static class DeletePermanentLinkHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if (exchange.getRequestMethod().equalsIgnoreCase("OPTIONS")) { handlePreflight(exchange); return; }
+            if (!checkRateLimit(exchange)) return;
+            if (!exchange.getRequestMethod().equalsIgnoreCase("POST")) { sendJson(exchange, 405, "Method not allowed"); return; }
+            String authHeader = exchange.getRequestHeaders().getFirst("X-Admin-Password");
+            if (!config.adminPassword.equals(authHeader)) { sendJson(exchange, 401, "Unauthorized"); return; }
+
+            String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            JsonObject json = gson.fromJson(body, JsonObject.class);
+            String id = json.get("id").getAsString();
+
+            InviteStorage.deletePermanentLink(id);
+            sendJson(exchange, 200, "Permanent link deleted");
+        }
+    }
+
     /**
      * Handles POST /api/delete-invite
+
      */
     static class DeleteInviteHandler implements HttpHandler {
         @Override

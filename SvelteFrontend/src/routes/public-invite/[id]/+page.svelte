@@ -29,7 +29,7 @@
 
 	onMount(async () => {
 		try {
-			const res = await fetch(`/public-invite/${id}`);
+			const res = await fetch(`/public-invite/${id}`, { headers: { 'Accept': 'application/json' } });
 			if (res.ok) {
 				const data = await res.json();
 				valid = true;
