@@ -138,7 +138,7 @@
 			</form>
 		{:else}
 			<form on:submit|preventDefault={submit}>
-				<input type="text" placeholder="Minecraft Username" bind:value={username} required pattern="[a-zA-Z0-9_]{3,16}" title="Valid Minecraft username" disabled={submitting} />
+				<input type="text" placeholder="Minecraft Username" bind:value={username} required pattern="\s*[a-zA-Z0-9_.*-]{3,24}\s*" title="Valid Minecraft username" disabled={submitting} />
 				
 				<div class="captcha">
 					<div class="h-captcha" bind:this={captchaContainer}></div>

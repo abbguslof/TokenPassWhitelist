@@ -93,9 +93,9 @@ public class InternalHttpServer {
             JsonObject json = gson.fromJson(body, JsonObject.class);
 
             String token = json.get("token").getAsString();
-            String username = json.get("username").getAsString();
+            String username = json.get("username").getAsString().trim();
 
-            if (!username.matches("^[a-zA-Z0-9_]{3,16}$")) {
+            if (!username.matches("^[a-zA-Z0-9_.*-]{3,24}$")) {
                 sendJson(exchange, 400, "Invalid username format");
                 return;
             }
@@ -377,10 +377,10 @@ public class InternalHttpServer {
             String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
             JsonObject json = gson.fromJson(body, JsonObject.class);
             String id = json.get("id").getAsString();
-            String username = json.get("username").getAsString();
+            String username = json.get("username").getAsString().trim();
             String passwordHash = json.has("passwordHash") && !json.get("passwordHash").isJsonNull() ? json.get("passwordHash").getAsString() : null;
 
-            if (!username.matches("^[a-zA-Z0-9_]{3,16}$")) {
+            if (!username.matches("^[a-zA-Z0-9_.*-]{3,24}$")) {
                 sendJson(exchange, 400, "Invalid username format");
                 return;
             }
@@ -550,7 +550,7 @@ public class InternalHttpServer {
 
             String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
             JsonObject json = gson.fromJson(body, JsonObject.class);
-            String username = json.get("username").getAsString();
+            String username = json.get("username").getAsString().trim();
 
             plugin.getServer().getCommandManager().executeAsync(
                     plugin.getServer().getConsoleCommandSource(),
@@ -595,7 +595,7 @@ public class InternalHttpServer {
 
             String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
             JsonObject json = gson.fromJson(body, JsonObject.class);
-            String username = json.get("username").getAsString();
+            String username = json.get("username").getAsString().trim();
 
             plugin.getServer().getCommandManager().executeAsync(
                     plugin.getServer().getConsoleCommandSource(),
