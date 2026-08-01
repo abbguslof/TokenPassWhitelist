@@ -43,6 +43,7 @@ public class InternalHttpServer {
             server.createContext("/api/permanent-links", new GetPermanentLinksHandler());
             server.createContext("/api/permanent-link", new CreatePermanentLinkHandler());
             server.createContext("/api/permanent-link-info", new GetPermanentLinkInfoHandler());
+            server.createContext("/api/verify-permanent-password", new VerifyPermanentPasswordHandler());
             server.createContext("/api/permanent-whitelist", new WhitelistPermanentHandler());
             server.createContext("/api/ping", new PingHandler());
             server.createContext("/api/whitelist-list", new GetWhitelistHandler());
@@ -358,6 +359,40 @@ public class InternalHttpServer {
             res.addProperty("hasPassword", link.passwordHash != null);
             res.addProperty("creatorName", link.creatorName);
             sendJson(exchange, 200, res);
+        }
+    }
+
+    /**
+     * Handles POST /api/verify-permanent-password
+     * Verifies that the provided password matches the permanent link's password.
+     * Requires the X-Auth-Token header.
+     */
+    static class VerifyPermanentPasswordHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if (exchange.getRequestMethod().equalsIgnoreCase("OPTIONS")) { handlePreflight(exchange); return; }
+            if (!checkRateLimit(exchange)) return;
+            if (!exchange.getRequestMethod().equalsIgnoreCase("POST")) { sendJson(exchange, 405, "Method not allowed"); return; }
+            String authHeader = exchange.getRequestHeaders().getFirst("X-Auth-Token");
+            if (!config.apiSecret.equals(authHeader)) { sendJson(exchange, 401, "Unauthorized"); return; }
+
+            String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            JsonObject json = gson.fromJson(body, JsonObject.class);
+            String id = json.get("id").getAsString();
+            String passwordHash = json.has("passwordHash") && !json.get("passwordHash").isJsonNull() ? json.get("passwordHash").getAsString() : null;
+
+            InviteStorage.PermanentLink link = InviteStorage.getPermanentLink(id);
+            if (link == null) {
+                sendJson(exchange, 404, "Invalid link");
+                return;
+            }
+
+            if (link.passwordHash != null && !link.passwordHash.equals(passwordHash)) {
+                sendJson(exchange, 401, "Invalid password");
+                return;
+            }
+
+            sendJson(exchange, 200, "Valid password");
         }
     }
 

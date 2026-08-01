@@ -13,6 +13,7 @@
 	let error: string | null = null;
 	let submitting = false;
 	let valid = false;
+	let verifyingPassword = false;
 	let hasPassword = false;
 	let step = 1;
 	let creatorName = '';
@@ -29,14 +30,16 @@
 
 	onMount(async () => {
 		try {
-			const res = await fetch(`/api/public-invite/${id}`);
+			const res = await fetch(`/validate-permanent-link/${id}`);
 			if (res.ok) {
 				const data = await res.json();
 				valid = true;
 				hasPassword = data.hasPassword;
 				step = data.hasPassword ? 1 : 2;
 				creatorName = data.creatorName;
-				setTimeout(initializeCaptcha, 100);
+				if (step === 2) {
+					setTimeout(initializeCaptcha, 100);
+				}
 			} else {
 				const data = await res.json();
 				error = data.message || "Invalid or expired permanent link.";
@@ -50,13 +53,34 @@
 	 * Initializes the hCaptcha widget. 
 	 * It polls for the global hcaptcha object since the script is loaded asynchronously.
 	 */
-	function nextStep() {
-		if (password) step = 2;
+	async function nextStep() {
+		if (!password) return;
+		
+		verifyingPassword = true;
+		error = null;
+
+		try {
+			const res = await fetch(`/verify-permanent-password/${id}`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ password })
+			});
+
+			if (res.ok) {
+				step = 2;
+				setTimeout(initializeCaptcha, 100);
+			} else {
+				const data = await res.json();
+				error = data.message || 'Invalid password';
+			}
+		} catch {
+			error = 'Network error while verifying password';
+		} finally {
+			verifyingPassword = false;
+		}
 	}
 
-	/**
-	 * Initializes the hCaptcha widget. 
-
+	function initializeCaptcha() {
 		if (!captchaContainer) return;
 
 		const check = setInterval(() => {
@@ -103,7 +127,7 @@
 		error = null;
 
 		try {
-			const res = await fetch(`/api/public-invite/${id}`, {
+			const res = await fetch(`/validate-permanent-link/${id}`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ username, captchaToken, password })
@@ -133,8 +157,10 @@
 		{#if step === 1}
 			<form on:submit|preventDefault={nextStep}>
 				<p>This invite is password-protected.</p>
-				<input type="password" placeholder="Invite Password" bind:value={password} required />
-				<button type="submit">Verify Password</button>
+				<input type="password" placeholder="Invite Password" bind:value={password} required disabled={verifyingPassword} />
+				<button type="submit" disabled={verifyingPassword}>
+					{verifyingPassword ? 'Verifying...' : 'Verify Password'}
+				</button>
 			</form>
 		{:else}
 			<form on:submit|preventDefault={submit}>

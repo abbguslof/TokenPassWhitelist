@@ -249,24 +249,51 @@ async function createPermanentLink() {
 	}
 </script>
 
+<svelte:head>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</svelte:head>
+
 <main class="dashboard">
 	<aside class="sidebar">
-		<h2>Admin Panel</h2>
+		<div class="sidebar-header">
+			<div class="logo">🛡️</div>
+			<h2>TokenPass</h2>
+			<span class="version-tag">Admin</span>
+		</div>
 		<nav>
-			<button class:active={activeTab === 'tree'} on:click={() => switchTab('tree')}>🌳 Invite Tree</button>
-			<button class:active={activeTab === 'active'} on:click={() => switchTab('active')}>🎫 Active Invites</button>
-			<button class:active={activeTab === 'whitelist'} on:click={() => switchTab('whitelist')}>📋 Players & Whitelist</button>
-			<button class:active={activeTab === 'generate'} on:click={() => switchTab('generate')}>🎟️ Generate Invite</button>
-			<button class:active={activeTab === 'permanent'} on:click={() => switchTab('permanent')}>🔗 Permanent Links</button>
-			<button on:click={() => { localStorage.removeItem('adminPassword'); goto('/admin'); }}>🚪 Logout</button>
+			<button class:active={activeTab === 'tree'} on:click={() => switchTab('tree')}>
+				<span class="nav-icon">🌳</span> Invite Tree
+			</button>
+			<button class:active={activeTab === 'active'} on:click={() => switchTab('active')}>
+				<span class="nav-icon">🎫</span> Active Invites
+			</button>
+			<button class:active={activeTab === 'whitelist'} on:click={() => switchTab('whitelist')}>
+				<span class="nav-icon">📋</span> Whitelist
+			</button>
+			<button class:active={activeTab === 'generate'} on:click={() => switchTab('generate')}>
+				<span class="nav-icon">🎟️</span> Generate Invite
+			</button>
+			<button class:active={activeTab === 'permanent'} on:click={() => switchTab('permanent')}>
+				<span class="nav-icon">🔗</span> Permanent Links
+			</button>
 		</nav>
+		<div class="sidebar-footer">
+			<button class="logout-btn" on:click={() => { localStorage.removeItem('adminPassword'); goto('/admin'); }}>
+				🚪 Logout
+			</button>
+		</div>
 	</aside>
 
 	<section class="content">
 		{#if loading}
-			<p>Loading data...</p>
+			<div class="loading-state">
+				<div class="spinner"></div>
+				<p>Loading dashboard...</p>
+			</div>
 		{:else if error}
-			<p class="error">{error}</p>
+			<div class="card error-card"><p class="error">{error}</p></div>
 		{:else}
 			{#if activeTab === 'tree'}
 				<div class="card">
@@ -299,19 +326,20 @@ async function createPermanentLink() {
 {#if activeTab === 'active'}
 				<div class="card">
 					<h3>Permanent Links</h3>
+					<div class="table-responsive">
 					<table>
-						<thead><tr><th>ID</th><th>Creator</th><th>Password?</th><th>Uses</th><th>Date</th><th>Link</th></tr></thead>
+						<thead><tr><th>ID</th><th>Creator</th><th>Password</th><th>Uses</th><th>Created</th><th>Actions</th></tr></thead>
 						<tbody>
 							{#each permanentLinks as p}
 								<tr>
-									<td>{p.id}</td>
+									<td class="mono">{p.id.substring(0, 8)}…</td>
 									<td>{p.creatorName}</td>
-									<td>{p.hasPassword ? 'Yes' : 'No'}</td>
-									<td>{p.uses}</td>
+									<td>{#if p.hasPassword}<span class="badge badge-yes">Yes</span>{:else}<span class="badge badge-no">No</span>{/if}</td>
+									<td><span class="badge badge-count">{p.uses}</span></td>
 									<td>{new Date(p.createdAt).toLocaleDateString()}</td>
-									<td>
-										<a href="{window.location.origin}/public-invite/{p.id}" target="_blank">Copy Link</a>
-										<button class="delete-btn" style="margin-left: 0.5rem; padding: 0.25rem 0.5rem; font-size: 0.8rem;" on:click={() => deletePermanentLink(p.id)}>Delete</button>
+									<td class="action-cell">
+										<button class="btn-sm btn-outline" on:click={() => { navigator.clipboard.writeText(window.location.origin + '/public-invite/' + p.id); }}>📋 Copy</button>
+										<button class="btn-sm btn-danger" on:click={() => deletePermanentLink(p.id)}>Delete</button>
 									</td>
 								</tr>
 							{/each}
@@ -320,16 +348,18 @@ async function createPermanentLink() {
 							{/if}
 						</tbody>
 					</table>
+					</div>
 				</div>
 
 				<div class="card">
 					<h3>Active Invites (Unclaimed)</h3>
+					<div class="table-responsive">
 					<table>
 						<thead><tr><th>Token</th><th>Inviter</th><th>Date</th><th>Action</th></tr></thead>
 						<tbody>
 							{#each invites.filter(i => !i.targetName) as i}
 								<tr>
-									<td>{i.token}</td>
+									<td class="mono">{i.token.substring(0, 8)}…</td>
 									<td>
 										{#if i.inviterName && i.inviterName.startsWith('[Admin]')}
 											<span class="admin-badge">Admin</span> {i.inviterName.replace('[Admin] ', '')}
@@ -338,7 +368,7 @@ async function createPermanentLink() {
 										{/if}
 									</td>
 									<td>{new Date(i.createdAt).toLocaleString()}</td>
-									<td><button class="delete-btn" on:click={() => deleteInvite(i.token)}>Delete</button></td>
+									<td class="action-cell"><button class="btn-sm btn-danger" on:click={() => deleteInvite(i.token)}>Delete</button></td>
 								</tr>
 							{/each}
 							{#if invites.filter(i => !i.targetName).length === 0}
@@ -346,12 +376,14 @@ async function createPermanentLink() {
 							{/if}
 						</tbody>
 					</table>
+					</div>
 				</div>
 			{/if}
 
 			{#if activeTab === 'whitelist'}
 				<div class="card">
 					<h3>Currently Online Players (Proxy)</h3>
+					<div class="table-responsive">
 					<table>
 						<thead><tr><th>UUID</th><th>Username</th></tr></thead>
 						<tbody>
@@ -363,6 +395,7 @@ async function createPermanentLink() {
 							{/if}
 						</tbody>
 					</table>
+					</div>
 				</div>
 				
 				<div class="card">
@@ -375,13 +408,14 @@ async function createPermanentLink() {
 						<input type="text" class="search-bar" placeholder="Search players..." bind:value={whitelistSearchQuery} />
 					</div>
 					
+					<div class="table-responsive">
 					<table>
 						<thead><tr><th>Username</th><th>Action</th></tr></thead>
 						<tbody>
 							{#each parsedWhitelistUsers as u}
 								<tr>
 									<td>{u}</td>
-									<td><button class="delete-btn" on:click={() => removeWhitelist(u)}>Remove</button></td>
+									<td class="action-cell"><button class="btn-sm btn-danger" on:click={() => removeWhitelist(u)}>Remove</button></td>
 								</tr>
 							{/each}
 							{#if parsedWhitelistUsers.length === 0}
@@ -389,6 +423,7 @@ async function createPermanentLink() {
 							{/if}
 						</tbody>
 					</table>
+					</div>
 					
 					<details style="margin-top: 1rem; color: #666;">
 						<summary>View raw console output</summary>
@@ -439,67 +474,321 @@ async function createPermanentLink() {
 </main>
 
 <style>
-	:global(body) { margin: 0; padding: 0; }
+	:global(body) { margin: 0; padding: 0; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
 	.dashboard {
 		display: flex;
 		height: 100vh;
-		background: #f4f7f6;
-		font-family: system-ui, sans-serif;
+		background: #f0f2f5;
 	}
+
+	/* Sidebar */
 	.sidebar {
-		width: 250px;
-		background: #2c3e50;
+		width: 260px;
+		background: linear-gradient(180deg, #1a2332 0%, #2c3e50 100%);
 		color: white;
-		padding: 2rem 1rem;
+		padding: 0;
 		display: flex;
 		flex-direction: column;
-		gap: 2rem;
+		box-shadow: 2px 0 12px rgba(0,0,0,0.1);
 	}
-	.sidebar h2 { margin: 0; text-align: center; }
+	.sidebar-header {
+		padding: 1.75rem 1.5rem;
+		text-align: center;
+		border-bottom: 1px solid rgba(255,255,255,0.08);
+	}
+	.logo { font-size: 2.5rem; margin-bottom: 0.5rem; }
+	.sidebar-header h2 { margin: 0; font-size: 1.3rem; font-weight: 700; letter-spacing: 0.5px; }
+	.version-tag {
+		display: inline-block;
+		margin-top: 0.4rem;
+		padding: 2px 10px;
+		background: rgba(255,255,255,0.1);
+		border-radius: 12px;
+		font-size: 0.75rem;
+		letter-spacing: 1px;
+		text-transform: uppercase;
+		color: rgba(255,255,255,0.6);
+	}
 	.sidebar nav {
 		display: flex;
 		flex-direction: column;
-		gap: 0.5rem;
+		padding: 1rem 0.75rem;
+		gap: 0.25rem;
+		flex: 1;
 	}
 	.sidebar button {
 		background: transparent;
-		color: white;
+		color: rgba(255,255,255,0.7);
 		border: none;
-		padding: 0.75rem 1rem;
+		padding: 0.7rem 1rem;
 		text-align: left;
-		font-size: 1rem;
+		font-size: 0.9rem;
+		font-weight: 500;
 		cursor: pointer;
-		border-radius: 4px;
-		transition: background 0.2s;
+		border-radius: 8px;
+		transition: all 0.15s ease;
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
 	}
-	.sidebar button:hover { background: #34495e; }
-	.sidebar button.active { background: #007cba; }
-	
+	.sidebar button:hover { background: rgba(255,255,255,0.08); color: #fff; }
+	.sidebar button.active { background: #007cba; color: #fff; box-shadow: 0 2px 8px rgba(0,124,186,0.3); }
+	.nav-icon { font-size: 1.1rem; width: 1.5rem; text-align: center; }
+	.sidebar-footer {
+		padding: 1rem 0.75rem;
+		border-top: 1px solid rgba(255,255,255,0.08);
+	}
+	.logout-btn {
+		width: 100%;
+		background: rgba(255,255,255,0.05) !important;
+		color: rgba(255,255,255,0.5) !important;
+		justify-content: center;
+	}
+	.logout-btn:hover { background: rgba(211,47,47,0.15) !important; color: #ff6b6b !important; }
+
+	/* Content Area */
 	.content {
 		flex: 1;
-		padding: 2rem;
+		padding: 2rem 2.5rem;
 		overflow-y: auto;
 	}
 	.card {
 		background: white;
-		border-radius: 8px;
-		padding: 2rem;
-		box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-		margin-bottom: 2rem;
+		border-radius: 12px;
+		padding: 1.75rem;
+		box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+		margin-bottom: 1.5rem;
+		border: 1px solid rgba(0,0,0,0.04);
 	}
-	.full-height { height: calc(100vh - 8rem); display: flex; flex-direction: column; }
-	.network-canvas { height: 600px; width: 100%; border: 1px solid #ddd; border-radius: 4px; margin-top: 1rem; }
-	
-	table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-	th, td { text-align: left; padding: 0.75rem; border-bottom: 1px solid #ddd; }
-	th { background: #f8f9fa; }
-	
-	form { display: flex; flex-direction: column; gap: 1rem; max-width: 400px; }
-	input { padding: 0.75rem; border: 1px solid #ccc; border-radius: 4px; }
-	button[type="submit"] { background: #007cba; color: white; border: none; padding: 0.75rem; border-radius: 4px; cursor: pointer; }
-	.warning { color: #856404; background: #fff3cd; padding: 1rem; border-radius: 4px; border: 1px solid #ffeeba; }
-	.result-box { margin-top: 1rem; padding: 1rem; background: #d4edda; color: #155724; border-radius: 4px; word-break: break-all; }
+	.card h3 {
+		margin: 0 0 1rem 0;
+		font-size: 1.15rem;
+		font-weight: 600;
+		color: #1a2332;
+	}
 
+	/* Loading */
+	.loading-state {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		height: 60vh;
+		gap: 1rem;
+		color: #999;
+	}
+	.spinner {
+		width: 36px;
+		height: 36px;
+		border: 3px solid #e0e0e0;
+		border-top: 3px solid #007cba;
+		border-radius: 50%;
+		animation: spin 0.8s linear infinite;
+	}
+	@keyframes spin { 100% { transform: rotate(360deg); } }
+	.error-card { border-left: 4px solid #d32f2f; }
+	.error { color: #d32f2f; margin: 0; }
+
+	/* Network Canvas */
+	.full-height { height: calc(100vh - 8rem); display: flex; flex-direction: column; }
+	.network-canvas {
+		height: 600px;
+		width: 100%;
+		border: 1px solid #e8eaed;
+		border-radius: 8px;
+		margin-top: 0.75rem;
+		background: #fafbfc;
+	}
+
+	/* Tables */
+	.table-responsive { overflow-x: auto; }
+	table { width: 100%; border-collapse: collapse; margin-top: 0.75rem; }
+	th, td { text-align: left; padding: 0.75rem 1rem; font-size: 0.9rem; }
+	th {
+		background: #f8f9fb;
+		color: #5f6368;
+		font-weight: 600;
+		font-size: 0.8rem;
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
+		border-bottom: 2px solid #e8eaed;
+	}
+	td { border-bottom: 1px solid #f0f1f3; color: #3c4043; }
+	tbody tr { transition: background 0.15s ease; }
+	tbody tr:hover { background: #f8f9fb; }
+	.mono { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85rem; color: #666; }
+	.action-cell { white-space: nowrap; }
+
+	/* Forms */
+	form { display: flex; flex-direction: column; gap: 1rem; max-width: 420px; }
+	input {
+		padding: 0.7rem 0.85rem;
+		border: 1.5px solid #dde1e6;
+		border-radius: 8px;
+		font-size: 0.9rem;
+		color: #1a2332;
+		transition: border-color 0.15s, box-shadow 0.15s;
+		font-family: inherit;
+	}
+	input:focus {
+		outline: none;
+		border-color: #007cba;
+		box-shadow: 0 0 0 3px rgba(0,124,186,0.1);
+	}
+	input::placeholder { color: #aab0b8; }
+	button[type="submit"] {
+		background: #007cba;
+		color: white;
+		border: none;
+		padding: 0.7rem 1.25rem;
+		border-radius: 8px;
+		cursor: pointer;
+		font-weight: 600;
+		font-size: 0.9rem;
+		transition: all 0.15s ease;
+		font-family: inherit;
+	}
+	button[type="submit"]:hover {
+		background: #006da8;
+		transform: translateY(-1px);
+		box-shadow: 0 4px 12px rgba(0,124,186,0.25);
+	}
+
+	/* Utility */
+	.warning {
+		color: #856404;
+		background: #fff8e1;
+		padding: 0.85rem 1rem;
+		border-radius: 8px;
+		border: 1px solid #ffe082;
+		font-size: 0.9rem;
+		line-height: 1.5;
+	}
+	.result-box {
+		margin-top: 1rem;
+		padding: 1rem 1.25rem;
+		background: #e8f5e9;
+		color: #2e7d32;
+		border-radius: 8px;
+		word-break: break-all;
+		font-size: 0.9rem;
+		border: 1px solid #c8e6c9;
+	}
+	.result-box a { color: #1b5e20; font-weight: 600; }
+
+	/* Badges */
+	.admin-badge {
+		background: #ff9800;
+		color: white;
+		padding: 2px 8px;
+		border-radius: 4px;
+		font-size: 0.75rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
+	}
+	.badge {
+		padding: 3px 10px;
+		border-radius: 12px;
+		font-size: 0.8rem;
+		font-weight: 600;
+	}
+	.badge-yes { background: #e8f5e9; color: #2e7d32; }
+	.badge-no { background: #f5f5f5; color: #999; }
+	.badge-count { background: #e3f2fd; color: #1565c0; }
+
+	/* Small Buttons */
+	.btn-sm {
+		padding: 0.35rem 0.75rem;
+		border-radius: 6px;
+		font-size: 0.8rem;
+		font-weight: 500;
+		cursor: pointer;
+		border: none;
+		transition: all 0.15s ease;
+		font-family: inherit;
+	}
+	.btn-danger {
+		background: #ffebee;
+		color: #c62828;
+	}
+	.btn-danger:hover { background: #d32f2f; color: white; }
+	.btn-outline {
+		background: #f5f5f5;
+		color: #555;
+		border: 1px solid #ddd;
+	}
+	.btn-outline:hover { background: #e0e0e0; }
+
+	/* Legacy delete-btn for tree actions */
+	.delete-btn {
+		background: #ffebee !important;
+		color: #c62828;
+		border: none;
+		padding: 0.45rem 1rem;
+		border-radius: 6px;
+		cursor: pointer;
+		transition: all 0.15s ease;
+		font-size: 0.85rem;
+		font-weight: 500;
+		font-family: inherit;
+	}
+	.delete-btn:hover { background: #d32f2f !important; color: white; }
+
+	/* Action Row */
+	.actions-row { display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; justify-content: space-between; }
+	.actions-row .inline-form { margin-bottom: 0; }
+	.search-bar {
+		padding: 0.7rem 0.85rem;
+		border: 1.5px solid #dde1e6;
+		border-radius: 8px;
+		flex: 1;
+		min-width: 200px;
+		max-width: 300px;
+		font-family: inherit;
+		font-size: 0.9rem;
+	}
+	.inline-form { flex-direction: row; align-items: center; margin-bottom: 1rem; max-width: none; gap: 0.5rem; }
+	.inline-form input { flex: 1; max-width: 300px; }
+	.console-output {
+		background: #1e1e2e;
+		color: #cdd6f4;
+		padding: 1rem;
+		border-radius: 8px;
+		font-family: 'SF Mono', 'Fira Code', monospace;
+		font-size: 0.85rem;
+		max-height: 200px;
+		overflow-y: auto;
+		margin-bottom: 1.5rem;
+		line-height: 1.6;
+	}
+	.help-text { font-size: 0.85rem; color: #888; margin-top: -0.5rem; margin-bottom: 1rem; }
+
+	/* Tree Legend & Actions */
+	.tree-legend {
+		display: flex;
+		gap: 1.25rem;
+		flex-wrap: wrap;
+		margin-bottom: 0.75rem;
+		font-size: 0.85rem;
+		color: #666;
+	}
+	.legend-item { display: flex; align-items: center; gap: 0.4rem; }
+	.legend-dot { display: inline-block; width: 12px; height: 12px; border-radius: 3px; border: 1px solid rgba(0,0,0,0.1); }
+	.tree-actions {
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+		padding: 0.65rem 1rem;
+		background: #f0f4f8;
+		border-radius: 8px;
+		margin-bottom: 0.5rem;
+		flex-wrap: wrap;
+		border: 1px solid #e0e7ee;
+	}
+	.tree-actions span { font-size: 0.9rem; color: #3c4043; }
+
+	/* Responsive */
 	@media (max-width: 768px) {
 		.dashboard {
 			flex-direction: column;
@@ -508,52 +797,27 @@ async function createPermanentLink() {
 		}
 		.sidebar {
 			width: 100%;
-			padding: 1rem;
-			gap: 1rem;
-			box-sizing: border-box;
+			flex-direction: row;
+			align-items: center;
 		}
+		.sidebar-header { display: none; }
+		.sidebar-footer { display: none; }
 		.sidebar nav {
 			flex-direction: row;
-			flex-wrap: wrap;
-			gap: 0.5rem;
+			padding: 0.5rem;
+			gap: 0.25rem;
+			overflow-x: auto;
 		}
 		.sidebar button {
-			flex: 1 1 auto;
+			flex-shrink: 0;
 			text-align: center;
-			font-size: 0.9rem;
-			padding: 0.5rem;
+			font-size: 0.8rem;
+			padding: 0.5rem 0.75rem;
 		}
-		.content {
-			padding: 1rem;
-		}
-		.card {
-			padding: 1.5rem;
-		}
-		table {
-			display: block;
-			overflow-x: auto;
-			white-space: nowrap;
-		}
-		.full-height {
-			height: 50vh;
-		}
+		.nav-icon { display: none; }
+		.content { padding: 1rem; }
+		.card { padding: 1.25rem; }
+		.full-height { height: 50vh; }
 	}
-
-	.delete-btn { background: #d32f2f !important; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; transition: background 0.2s; font-size: 0.9rem; }
-	.delete-btn:hover { background: #b71c1c !important; }
-	.actions-row { display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; justify-content: space-between; }
-	.actions-row .inline-form { margin-bottom: 0; }
-	.search-bar { padding: 0.75rem; border: 1px solid #ccc; border-radius: 4px; flex: 1; min-width: 200px; max-width: 300px; }
-	.admin-badge { background: #ff9800; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
-	.inline-form { flex-direction: row; align-items: center; margin-bottom: 1rem; max-width: none; }
-	.inline-form input { flex: 1; max-width: 300px; }
-	.console-output { background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 4px; font-family: monospace; max-height: 200px; overflow-y: auto; margin-bottom: 1.5rem; }
-	.help-text { font-size: 0.9rem; color: #666; margin-top: -0.5rem; margin-bottom: 1rem; }
-
-	.tree-legend { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 0.5rem; font-size: 0.9rem; color: #555; }
-	.legend-item { display: flex; align-items: center; gap: 0.4rem; }
-	.legend-dot { display: inline-block; width: 14px; height: 14px; border-radius: 3px; border: 1px solid #ccc; }
-	.tree-actions { display: flex; align-items: center; gap: 1rem; padding: 0.75rem 1rem; background: #f0f4f8; border-radius: 6px; margin-bottom: 0.5rem; flex-wrap: wrap; }
-	.tree-actions span { font-size: 0.95rem; }
 
 </style>
