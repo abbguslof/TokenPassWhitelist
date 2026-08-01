@@ -70,7 +70,7 @@ public class InviteStorage {
 
                 UUID inviterUUID = node.node("inviterUUID").get(UUID.class);
                 String inviterName = node.node("inviterName").getString();
-                String targetName = node.node("targetName").getString(null);
+                String targetName = node.node("targetName").getString();
                 long createdAt = node.node("createdAt").getLong(System.currentTimeMillis());
 
                 invites.put(token, new InviteEntry(inviterUUID, inviterName, targetName, createdAt));
@@ -93,7 +93,7 @@ public class InviteStorage {
                 ConfigurationNode node = entry.getValue();
 
                 String creatorName = node.node("creatorName").getString();
-                String passwordHash = node.node("passwordHash").getString(null);
+                String passwordHash = node.node("passwordHash").getString();
                 long createdAt = node.node("createdAt").getLong(System.currentTimeMillis());
 
                 permanentLinks.put(id, new PermanentLink(creatorName, passwordHash, createdAt));
