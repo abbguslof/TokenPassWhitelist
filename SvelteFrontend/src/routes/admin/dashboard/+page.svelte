@@ -264,14 +264,13 @@
 				</div>
 				
 				<div class="card">
-					<h3>Server Whitelist</h3>
-					<form class="inline-form" on:submit|preventDefault={addWhitelist}>
-						<input type="text" placeholder="Add username..." bind:value={newWhitelistUser} required />
-						<button type="submit">Add to Whitelist</button>
-					</form>
-					<h3>Manage Whitelisted Players</h3>
-					<div class="inline-form">
-						<input type="text" placeholder="Search whitelisted players..." bind:value={whitelistSearchQuery} />
+					<h3>Manage Whitelisted Players ({parsedWhitelistUsers.length} total)</h3>
+					<div class="actions-row">
+						<form class="inline-form" on:submit|preventDefault={addWhitelist}>
+							<input type="text" placeholder="New username..." bind:value={newWhitelistUser} required />
+							<button type="submit">Add Player</button>
+						</form>
+						<input type="text" class="search-bar" placeholder="Search players..." bind:value={whitelistSearchQuery} />
 					</div>
 					
 					<table>
@@ -438,8 +437,11 @@
 		}
 	}
 
-	.delete-btn { background: #d32f2f !important; }
+	.delete-btn { background: #d32f2f !important; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; transition: background 0.2s; font-size: 0.9rem; }
 	.delete-btn:hover { background: #b71c1c !important; }
+	.actions-row { display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; justify-content: space-between; }
+	.actions-row .inline-form { margin-bottom: 0; }
+	.search-bar { padding: 0.75rem; border: 1px solid #ccc; border-radius: 4px; flex: 1; min-width: 200px; max-width: 300px; }
 	.admin-badge { background: #ff9800; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
 	.inline-form { flex-direction: row; align-items: center; margin-bottom: 1rem; max-width: none; }
 	.inline-form input { flex: 1; max-width: 300px; }
