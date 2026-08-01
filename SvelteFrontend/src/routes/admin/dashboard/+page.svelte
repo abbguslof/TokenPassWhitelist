@@ -21,7 +21,7 @@
 		.split(/\s+/)
 		.map(w => w.trim())
 		.filter(w => /^[a-zA-Z0-9_]{3,16}$/.test(w))
-		.filter(w => !['There', 'are', 'out', 'of', 'seen', 'whitelisted', 'players', 'and', 'the'].includes(w))
+		.filter(w => !['there', 'are', 'out', 'of', 'seen', 'whitelisted', 'whitelist', 'players', 'size', 'and', 'the'].includes(w.toLowerCase()))
 		.filter((v, i, a) => a.indexOf(v) === i)
 		.filter(w => w.toLowerCase().includes(whitelistSearchQuery.toLowerCase()));
 
