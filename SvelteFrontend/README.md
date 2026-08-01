@@ -29,18 +29,21 @@ src/routes/
 ├── +page.svelte                          # Landing page
 ├── admin/
 │   ├── +page.svelte                      # Admin login page
-│   ├── create/+server.ts                 # Legacy invite creation proxy
+│   ├── create/+server.ts                 # Admin invite creation proxy
 │   └── dashboard/
 │       ├── +page.svelte                  # Full admin dashboard (tree, invites, whitelist, links)
 │       └── api/+server.ts               # Internal proxy — relays admin requests to Java backend
-├── api/
-│   └── public-invite/[id]/+server.ts     # Permanent link API proxy (GET info, POST redeem)
 ├── invite/
 │   └── [token]/
 │       ├── +page.svelte                  # One-time invite redemption page
-│       └── +server.ts                    # Token validation & whitelist proxy
+│       ├── +server.ts                    # Token validation & whitelist proxy
+│       └── whitelist/+server.ts          # Legacy whitelist proxy
 ├── public-invite/
 │   └── [id]/+page.svelte                # Permanent link redemption page (two-step password flow)
+├── validate-permanent-link/
+│   └── [id]/+server.ts                  # Permanent link validation & redemption proxy
+├── verify-permanent-password/
+│   └── [id]/+server.ts                  # Password pre-verification proxy for permanent links
 └── success/
     └── +page.svelte                      # Post-whitelist confirmation page
 ```
@@ -142,7 +145,7 @@ The production server runs on port `3000` by default.
 The dashboard uses an internal SvelteKit API route (`/admin/dashboard/api`) to proxy all admin requests. The `ADMIN_PASSWORD` is sent server-side from the Node.js process to the Java backend — it is **never exposed** in client-side network requests visible in browser DevTools.
 
 ### Two-Step Permanent Link Flow
-If a permanent link has a password, the user sees only a password input field on the first step. The username input, CAPTCHA widget, and submit button are completely hidden until the password step is completed. The password is held in memory and submitted alongside the username in a single POST to the backend.
+If a permanent link has a password, the user sees only a password input field on the first step. The username input, CAPTCHA widget, and submit button are completely hidden until the password is verified against the backend. An incorrect password will display an error and prevent the user from proceeding. Once verified, the password is held in memory and submitted alongside the username in a single POST to the backend.
 
 ### CAPTCHA Protection
 - hCaptcha is integrated on all user-facing redemption forms (both one-time and permanent).
@@ -152,6 +155,7 @@ If a permanent link has a password, the user sees only a password input field on
 - Username validation regex: `^[a-zA-Z0-9_.*-]{3,24}$` (supports Java and Bedrock/Geyser usernames).
 - Server-side validation on both the SvelteKit proxy and the Java backend.
 - Whitespace is automatically trimmed from usernames.
+- Client-side HTML5 pattern validation has been removed to avoid false rejections across different browsers.
 
 ## 🐛 Troubleshooting
 
@@ -171,7 +175,7 @@ If a permanent link has a password, the user sees only a password input field on
 - Ensure the hCaptcha script (`https://js.hcaptcha.com/1/api.js`) is not blocked by an ad blocker or CSP.
 
 **"Please match the requested format" on username input:**
-- This is a browser HTML5 validation message. The pattern accepts `a-z`, `A-Z`, `0-9`, `_`, `.`, `*`, and `-` (3-24 characters). If a valid username is rejected, check for invisible whitespace characters.
+- This should no longer occur. Client-side pattern validation has been removed in favor of server-side validation only. If you still see this, ensure you have deployed the latest version of the frontend.
 
 ## 📄 License
 

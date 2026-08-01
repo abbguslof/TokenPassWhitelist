@@ -57,7 +57,7 @@ TokenPassWhitelist transforms the traditional Minecraft whitelist process into a
 
 ### 🔐 Security First
 - **One-time invite tokens** that expire after use.
-- **Two-step password flow** for permanent links — if a link is password-protected, users must enter the password before they can see or interact with the username/CAPTCHA form.
+- **Two-step password flow** for permanent links — if a link is password-protected, users must enter and verify the password against the server before they can see or interact with the username/CAPTCHA form.
 - **hCaptcha protection** against automated abuse on all user-facing forms.
 - **IP-based rate limiting** on all API endpoints (100 requests per 10 seconds).
 - **CORS-compliant API** for secure cross-origin requests.
@@ -211,7 +211,7 @@ TokenPassWhitelist/
 │   └── src/main/
 │       ├── java/.../
 │       │   ├── TokenPassWhitelist.java    # Plugin entry point
-│       │   ├── InternalHttpServer.java    # Built-in HTTP API (18 endpoints)
+│       │   ├── InternalHttpServer.java    # Built-in HTTP API (16 endpoints)
 │       │   ├── InviteStorage.java         # Invite/permanent link persistence
 │       │   ├── InviteCommand.java         # /invite command handler
 │       │   └── ConfigFile.java            # Safe YAML config loader
@@ -221,12 +221,13 @@ TokenPassWhitelist/
     ├── README.md                    # Frontend-specific documentation
     ├── package.json                 # Node.js dependencies
     └── src/routes/
-        ├── +page.svelte             # Landing page
-        ├── admin/                   # Admin login + dashboard
-        ├── api/public-invite/       # Permanent link API proxy
-        ├── invite/[token]/          # Single-use invite redemption
-        ├── public-invite/[id]/      # Permanent link redemption page
-        └── success/                 # Post-whitelist confirmation
+        ├── +page.svelte                    # Landing page
+        ├── admin/                          # Admin login + dashboard
+        ├── invite/[token]/                 # Single-use invite redemption
+        ├── public-invite/[id]/             # Permanent link redemption page
+        ├── validate-permanent-link/[id]/   # Permanent link validation proxy
+        ├── verify-permanent-password/[id]/ # Password pre-verification proxy
+        └── success/                        # Post-whitelist confirmation
 ```
 
 ## 🤝 Contributing

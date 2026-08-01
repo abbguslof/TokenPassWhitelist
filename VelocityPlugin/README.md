@@ -12,7 +12,7 @@ The server-side component of the TokenPassWhitelist system. This Velocity proxy 
 - `/invite list` command to view your generated invites and their status
 - Clickable invite links in chat with hover tooltips
 - Real-time in-game notification when invites are redeemed
-- Built-in HTTP API with 18 endpoints for frontend integration
+- Built-in HTTP API with 16 endpoints for frontend integration
 - Permanent invite links with optional password protection
 - Full whitelist management via configurable console commands
 - IP-based rate limiting (100 requests / 10 seconds)
@@ -33,6 +33,7 @@ VelocityPlugin/
     │   ├── InternalHttpServer.java         # Built-in HTTP API server
     │   ├── InviteStorage.java              # Invite & permanent link persistence
     │   ├── InviteCommand.java              # /invite command handler
+    │   ├── CapturingCommandSource.java     # Captures console command output
     │   └── ConfigFile.java                 # Safe YAML config loader
     └── resources/
         └── config.yml                      # Default configuration template
@@ -141,6 +142,7 @@ The plugin runs a built-in HTTP server on the configured `ip:port`. All endpoint
 | POST   | `/api/whitelist`          | `X-Auth-Token`     | Redeem a one-time invite token and whitelist a user  |
 | POST   | `/api/check-token`        | `X-Auth-Token`     | Check if a one-time token is valid and unclaimed     |
 | POST   | `/api/permanent-link-info`| `X-Auth-Token`     | Get info about a permanent link (has password, etc.) |
+| POST   | `/api/verify-permanent-password`| `X-Auth-Token` | Verify password for a password-protected permanent link |
 | POST   | `/api/permanent-whitelist`| `X-Auth-Token`     | Redeem a permanent link and whitelist a user         |
 | POST   | `/api/invite-admin`       | `X-Admin-Password` | Create a one-time invite from the admin panel        |
 | POST   | `/api/permanent-link`     | `X-Admin-Password` | Create a new permanent invite link                   |

@@ -71,7 +71,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
 	const { username, captchaToken } = await request.json();
 	const token = params.token;
 
-	if (!username || !/^[a-zA-Z0-9_]{3,16}$/.test(username)) {
+	if (!username || !/^[a-zA-Z0-9_.*-]{3,24}$/.test(username.trim())) {
 		return json({ message: 'Invalid username format' }, { status: 400 });
 	}
 
