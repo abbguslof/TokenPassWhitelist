@@ -29,7 +29,7 @@
 
 	onMount(async () => {
 		try {
-			const res = await fetch(`/public-invite/${id}`, { headers: { 'Accept': 'application/json' } });
+			const res = await fetch(`/api/public-invite/${id}`);
 			if (res.ok) {
 				const data = await res.json();
 				valid = true;
@@ -103,7 +103,7 @@
 		error = null;
 
 		try {
-			const res = await fetch(`/public-invite/${id}`, {
+			const res = await fetch(`/api/public-invite/${id}`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ username, captchaToken, password })
